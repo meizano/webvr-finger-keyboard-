@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cardboard & PC Mixed Reality Dual-Hand Finger Keyboard</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <!-- MediaPipe Hands & Utilities -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
   <!-- External Configuration File -->
   <script src="./js/config.js"></script>
   <style>
@@ -83,6 +87,7 @@
       object-fit: cover;
       z-index: -1;
       display: block;
+      transform: scaleX(-1);
     }
   </style>
 </head>
@@ -92,20 +97,20 @@
 
   <!-- 2D Top Navigation & Controls Overlay -->
   <div id="ui-overlay">
-    <button onclick="window.togglePassthrough()">MR Passthrough: <span id="passthrough-label">ON</span></button>
-    <button onclick="window.toggleCamera()">Camera: <span id="cam-label">Rear</span></button>
+    <button onclick="togglePassthrough()">MR Passthrough: <span id="passthrough-label">ON</span></button>
+    <button onclick="toggleCamera()">Camera: <span id="cam-label">Front</span></button>
     <button onclick="window.location.href='mediapipe-test.html'">Test MediaPipe</button>
-    <button onclick="window.clearText()">Clear</button>
+    <button onclick="clearText()">Clear</button>
     <button onclick="window.location.href='index.html'">Menu</button>
-    <span id="status">Initializing Android & PC Dual-Hand Tracking...</span>
+    <span id="status">Initializing MediaPipe Hands...</span>
   </div>
 
-  <!-- 2D Bottom Text Output & WPM Overlay (WPM placed on LEFT of Output:) -->
+  <!-- 2D Bottom Text Output & WPM Overlay -->
   <div id="typed-display">
     <span class="wpm-badge">WPM: <span id="wpm-val" style="color: #10b981; font-weight: bold;">0</span></span> | Output: <span id="text-output" style="color: #38bdf8; font-weight: bold;"></span>
   </div>
 
-  <!-- 3D WebVR Scene (keyboard-shortcuts="enterVR: false" disables default 'F' fullscreen shortcut) -->
+  <!-- 3D WebVR Scene -->
   <a-scene background="transparent: true" renderer="alpha: true" keyboard-shortcuts="enterVR: false">
     <a-assets>
       <mixin id="key-btn" geometry="primitive: box; width: 0.12; height: 0.12; depth: 0.03" material="shader: flat; color: #1e293b"></mixin>
@@ -129,13 +134,13 @@
 
       <!-- 3D Scrollbar Container on Right Side of Screen -->
       <a-entity id="screen-scrollbar" position="0.8 0 0.02">
-        <a-entity id="btn-scroll-up" class="interactive-key" position="0 0.15 0.02" onclick="window.scrollTextUp()">
+        <a-entity id="btn-scroll-up" class="interactive-key" position="0 0.15 0.02" onclick="scrollTextUp()">
           <a-box width="0.08" height="0.08" depth="0.03" color="#0ea5e9" data-original-color="#0ea5e9" class="interactive-key"></a-box>
           <a-text value="^" align="center" color="white" width="1.8" position="0 0 0.02"></a-text>
         </a-entity>
         <a-plane position="0 0 0.01" width="0.03" height="0.22" color="#1e293b" opacity="0.8"></a-plane>
         <a-box id="scroll-thumb" position="0 0.05 0.02" width="0.04" height="0.06" color="#38bdf8"></a-box>
-        <a-entity id="btn-scroll-down" class="interactive-key" position="0 -0.15 0.02" onclick="window.scrollTextDown()">
+        <a-entity id="btn-scroll-down" class="interactive-key" position="0 -0.15 0.02" onclick="scrollTextDown()">
           <a-box width="0.08" height="0.08" depth="0.03" color="#0ea5e9" data-original-color="#0ea5e9" class="interactive-key"></a-box>
           <a-text value="v" align="center" color="white" width="1.8" position="0 0 0.02"></a-text>
         </a-entity>
@@ -176,7 +181,7 @@
       <a-entity id="right-thumb-actuator" position="0.2 -0.03 0.03"><a-sphere radius="0.02" color="#f43f5e" data-original-color="#f43f5e"></a-sphere><a-text value="Thumb" align="center" color="#f43f5e" width="0.7" position="0 -0.03 0" rotation="0 0 -90"></a-text></a-entity>
     </a-entity>
 
-    <!-- 4. LEFT HAND VIRTUAL RIG (M through X) at -1.1 4 -1.6 (Horizontally Mirrored) -->
+    <!-- 4. LEFT HAND VIRTUAL RIG (M through X) at -1.1 4 -1.6 -->
     <a-entity id="virtual-left-hand-rig" position="-1.1 4 -1.6" rotation="0 0 -90">
       <a-entity id="left-hand-mesh-reference">
         <a-box position="-0.02 0.02 -0.01" width="0.18" height="0.18" depth="0.015" color="#1e293b" opacity="0.65" data-original-color="#1e293b"></a-box>
@@ -220,10 +225,7 @@
     </a-entity>
   </a-scene>
 
-  <!-- ES Module Import for MediaPipe Tasks Vision -->
-  <script type="module">
-    import { HandLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0";
-
+  <script>
     AFRAME.registerComponent('camera-arrow-controls', {
       init: function () {
         this.speed = 0.08;
@@ -253,9 +255,10 @@
     };
 
     let typedText = '';
-    let useRearCamera = true;
+    let useRearCamera = false; // Default to 'user' / front camera for laptop & desktop compatibility
     let passthroughActive = true;
-    let handLandmarker = undefined;
+    let hands = null;
+    let cameraUtil = null;
     let isTrackingRightHand = false;
     let isTrackingLeftHand = false;
     let audioCtx = null;
@@ -496,32 +499,19 @@
       }
     }
 
-    async function initCamera() {
-      const video = document.getElementById('passthrough-video');
-      if (window.stream) window.stream.getTracks().forEach(track => track.stop());
+    function startCamera() {
+      const videoElement = document.getElementById('passthrough-video');
+      if (cameraUtil) { try { cameraUtil.stop(); } catch(e){} }
 
-      // Soft constraint ladder without exact constraints to prevent OverconstrainedError on desktop webcams
-      const attempts = [
-        { video: { facingMode: useRearCamera ? "environment" : "user", width: { ideal: 1280 }, height: { ideal: 720 } } },
-        { video: { facingMode: useRearCamera ? "environment" : "user", width: { ideal: 640 }, height: { ideal: 480 } } },
-        { video: { facingMode: "user" } },
-        { video: true }
-      ];
-
-      for (let constraints of attempts) {
-        try {
-          window.stream = await navigator.mediaDevices.getUserMedia(constraints);
-          video.srcObject = window.stream;
-          video.setAttribute('playsinline', '');
-          video.setAttribute('muted', '');
-          await video.play();
-          video.addEventListener('loadeddata', predictWebcam);
-          console.log("Camera started successfully with:", constraints);
-          break;
-        } catch (e) {
-          console.warn("Camera constraint attempt failed:", e.name || e.message);
-        }
-      }
+      cameraUtil = new Camera(videoElement, {
+        onFrame: async () => {
+          if (hands) await hands.send({ image: videoElement });
+        },
+        width: 1280,
+        height: 720,
+        facingMode: useRearCamera ? "environment" : "user"
+      });
+      cameraUtil.start().catch(e => console.warn(e));
     }
 
     window.togglePassthrough = function() {
@@ -535,138 +525,120 @@
     window.toggleCamera = function() {
       useRearCamera = !useRearCamera;
       document.getElementById('cam-label').innerText = useRearCamera ? 'Rear' : 'Front';
-      initCamera();
+      startCamera();
     };
 
-    async function initMediaPipe() {
+    function initMediaPipe() {
       try {
-        const vision = await FilesetResolver.forVisionTasks(
-          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
-        );
+        hands = new Hands({
+          locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
 
-        const delegates = ["GPU", "CPU"];
-        for (let delegate of delegates) {
-          try {
-            handLandmarker = await HandLandmarker.createFromOptions(vision, {
-              baseOptions: {
-                modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`,
-                delegate: delegate
-              },
-              runningMode: "VIDEO",
-              numHands: 2, // Detect BOTH hands!
-              minHandDetectionConfidence: 0.5
-            });
-            document.getElementById('status').innerText = `Dual-Hand Tracking Ready (${delegate}). Show Both Hands or Gaze 3s!`;
-            break;
-          } catch (e) { console.warn(e); }
-        }
+        hands.setOptions({
+          maxNumHands: 2,
+          modelComplexity: 1,
+          minDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5
+        });
+
+        hands.onResults(onResults);
+        startCamera();
+        document.getElementById('status').innerText = "Dual-Hand Tracking Ready! Show Both Hands or Gaze 3s.";
       } catch (e) {
+        console.warn(e);
         document.getElementById('status').innerText = "Gaze 3s & Mouse Ready!";
       }
     }
 
-    let lastVideoTime = -1;
-    async function predictWebcam() {
-      const video = document.getElementById('passthrough-video');
-      if (!handLandmarker || video.paused || video.ended || video.readyState < 2) {
-        requestAnimationFrame(predictWebcam);
-        return;
-      }
+    function onResults(results) {
+      const now = performance.now();
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        let foundRight = false;
+        let foundLeft = false;
 
-      if (video.currentTime !== lastVideoTime) {
-        lastVideoTime = video.currentTime;
-        const startTimeMs = performance.now();
-        const results = handLandmarker.detectForVideo(video, startTimeMs);
-        const now = performance.now();
+        for (let i = 0; i < results.multiHandLandmarks.length; i++) {
+          const landmarks = results.multiHandLandmarks[i];
+          let label = "Right";
+          if (results.multiHandedness && results.multiHandedness[i]) {
+            label = results.multiHandedness[i].label; // "Left" or "Right"
+          }
 
-        if (results.landmarks && results.landmarks.length > 0) {
-          let foundRight = false;
-          let foundLeft = false;
+          const wrist = landmarks[0];
+          const thumbTip = landmarks[4];
 
-          results.landmarks.forEach((landmarks, idx) => {
-            let label = "Right";
-            if (results.handedness && results.handedness[idx]) {
-              label = results.handedness[idx][0].categoryName || label;
+          if (label === 'Right') {
+            foundRight = true;
+            isTrackingRightHand = true;
+            const rightRig = document.getElementById('virtual-right-hand-rig');
+            if (rightRig) {
+              const rx = (wrist.x - 0.5) * -1.2;
+              const ry = (1.0 - wrist.y - 0.5) * 1.2 + 1.25;
+              const rz = (wrist.z - 0.2) * -1.2 - 0.8;
+              rightRig.setAttribute('position', `${rx} ${ry} ${rz}`);
             }
-
-            const wrist = landmarks[0];
-            const thumbTip = landmarks[4];
-
-            if (label === 'Right') {
-              foundRight = true;
-              isTrackingRightHand = true;
-              const rightRig = document.getElementById('virtual-right-hand-rig');
-              if (rightRig) {
-                const rx = (wrist.x - 0.5) * -1.2;
-                const ry = (1.0 - wrist.y - 0.5) * 1.2 + 1.25;
-                const rz = (wrist.z - 0.2) * -1.2 - 0.8;
-                rightRig.setAttribute('position', `${rx} ${ry} ${rz}`);
-              }
-              rightSegmentKeys.forEach(key => {
-                const joint = landmarks[key.landmark];
-                if (joint) {
-                  const segEl = document.getElementById(key.id);
-                  if (segEl) {
-                    segEl.setAttribute('position', `${(joint.x - wrist.x) * -1.2} ${(wrist.y - joint.y) * 1.2} 0.02`);
-                  }
-                  const dist = Math.sqrt(Math.pow(thumbTip.x - joint.x, 2) + Math.pow(thumbTip.y - joint.y, 2) + Math.pow(thumbTip.z - joint.z, 2));
-                  if (dist < C.tracking.touchThreshold) {
-                    if (!lastTouchTime[key.char] || (now - lastTouchTime[key.char] > C.tracking.touchCooldownMs)) {
-                      lastTouchTime[key.char] = now;
-                      typeChar(key.char);
-                    }
+            rightSegmentKeys.forEach(key => {
+              const joint = landmarks[key.landmark];
+              if (joint) {
+                const segEl = document.getElementById(key.id);
+                if (segEl) {
+                  segEl.setAttribute('position', `${(joint.x - wrist.x) * -1.2} ${(wrist.y - joint.y) * 1.2} 0.02`);
+                }
+                const dist = Math.sqrt(Math.pow(thumbTip.x - joint.x, 2) + Math.pow(thumbTip.y - joint.y, 2) + Math.pow(thumbTip.z - joint.z, 2));
+                if (dist < C.tracking.touchThreshold) {
+                  if (!lastTouchTime[key.char] || (now - lastTouchTime[key.char] > C.tracking.touchCooldownMs)) {
+                    lastTouchTime[key.char] = now;
+                    typeChar(key.char);
                   }
                 }
-              });
-            } else if (label === 'Left') {
-              foundLeft = true;
-              isTrackingLeftHand = true;
-              const leftRig = document.getElementById('virtual-left-hand-rig');
-              if (leftRig) {
-                const lx = (wrist.x - 0.5) * -1.2;
-                const ly = (1.0 - wrist.y - 0.5) * 1.2 + 1.25;
-                const lz = (wrist.z - 0.2) * -1.2 - 0.8;
-                leftRig.setAttribute('position', `${lx} ${ly} ${lz}`);
               }
-              leftSegmentKeys.forEach(key => {
-                const joint = landmarks[key.landmark];
-                if (joint) {
-                  const segEl = document.getElementById(key.id);
-                  if (segEl) {
-                    segEl.setAttribute('position', `${(joint.x - wrist.x) * -1.2} ${(wrist.y - joint.y) * 1.2} 0.02`);
-                  }
-                  const dist = Math.sqrt(Math.pow(thumbTip.x - joint.x, 2) + Math.pow(thumbTip.y - joint.y, 2) + Math.pow(thumbTip.z - joint.z, 2));
-                  if (dist < C.tracking.touchThreshold) {
-                    if (!lastTouchTime[key.char] || (now - lastTouchTime[key.char] > C.tracking.touchCooldownMs)) {
-                      lastTouchTime[key.char] = now;
-                      typeChar(key.char);
-                    }
+            });
+          } else if (label === 'Left') {
+            foundLeft = true;
+            isTrackingLeftHand = true;
+            const leftRig = document.getElementById('virtual-left-hand-rig');
+            if (leftRig) {
+              const lx = (wrist.x - 0.5) * -1.2;
+              const ly = (1.0 - wrist.y - 0.5) * 1.2 + 1.25;
+              const lz = (wrist.z - 0.2) * -1.2 - 0.8;
+              leftRig.setAttribute('position', `${lx} ${ly} ${lz}`);
+            }
+            leftSegmentKeys.forEach(key => {
+              const joint = landmarks[key.landmark];
+              if (joint) {
+                const segEl = document.getElementById(key.id);
+                if (segEl) {
+                  segEl.setAttribute('position', `${(joint.x - wrist.x) * -1.2} ${(wrist.y - joint.y) * 1.2} 0.02`);
+                }
+                const dist = Math.sqrt(Math.pow(thumbTip.x - joint.x, 2) + Math.pow(thumbTip.y - joint.y, 2) + Math.pow(thumbTip.z - joint.z, 2));
+                if (dist < C.tracking.touchThreshold) {
+                  if (!lastTouchTime[key.char] || (now - lastTouchTime[key.char] > C.tracking.touchCooldownMs)) {
+                    lastTouchTime[key.char] = now;
+                    typeChar(key.char);
                   }
                 }
-              });
-            }
-          });
-
-          if (!foundRight && isTrackingRightHand) {
-            isTrackingRightHand = false;
-            document.getElementById('virtual-right-hand-rig').setAttribute('position', '1.1 4 -1.6');
-          }
-          if (!foundLeft && isTrackingLeftHand) {
-            isTrackingLeftHand = false;
-            document.getElementById('virtual-left-hand-rig').setAttribute('position', '-1.1 4 -1.6');
-          }
-        } else {
-          if (isTrackingRightHand) {
-            isTrackingRightHand = false;
-            document.getElementById('virtual-right-hand-rig').setAttribute('position', '1.1 4 -1.6');
-          }
-          if (isTrackingLeftHand) {
-            isTrackingLeftHand = false;
-            document.getElementById('virtual-left-hand-rig').setAttribute('position', '-1.1 4 -1.6');
+              }
+            });
           }
         }
+
+        if (!foundRight && isTrackingRightHand) {
+          isTrackingRightHand = false;
+          document.getElementById('virtual-right-hand-rig').setAttribute('position', '1.1 4 -1.6');
+        }
+        if (!foundLeft && isTrackingLeftHand) {
+          isTrackingLeftHand = false;
+          document.getElementById('virtual-left-hand-rig').setAttribute('position', '-1.1 4 -1.6');
+        }
+      } else {
+        if (isTrackingRightHand) {
+          isTrackingRightHand = false;
+          document.getElementById('virtual-right-hand-rig').setAttribute('position', '1.1 4 -1.6');
+        }
+        if (isTrackingLeftHand) {
+          isTrackingLeftHand = false;
+          document.getElementById('virtual-left-hand-rig').setAttribute('position', '-1.1 4 -1.6');
+        }
       }
-      requestAnimationFrame(predictWebcam);
     }
 
     window.addEventListener('keydown', (e) => {
@@ -689,8 +661,7 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       buildQwertyKeyboard();
-      initCamera();
-      setTimeout(initMediaPipe, 800);
+      initMediaPipe();
 
       [...rightSegmentKeys, ...leftSegmentKeys].forEach(key => {
         const segEl = document.getElementById(key.id);

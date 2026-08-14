@@ -4,6 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MediaPipe Dual-Hand Tracking & Skeleton Test</title>
+  <!-- MediaPipe Hands & Utilities -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
   <style>
     body {
       margin: 0;
@@ -63,16 +67,20 @@
       height: 100%;
       object-fit: cover;
     }
+    #webcam {
+      transform: scaleX(-1);
+    }
+    #output_canvas {
+      transform: scaleX(-1);
+    }
   </style>
-  <script type="module" crossorigin src="./assets/mediapipeTest-YNgN7fhg.js"></script>
-  <link rel="modulepreload" crossorigin href="./assets/modulepreload-polyfill-B5Qt9EMX.js">
 </head>
 <body>
   <div id="ui-bar">
-    <button onclick="window.toggleCamera()">Toggle Camera (Rear/Front)</button>
+    <button onclick="toggleCamera()">Toggle Camera (Rear/Front)</button>
     <button onclick="window.location.href='cardboard.html'">Open VR App</button>
     <button onclick="window.location.href='index.html'">Back to Menu</button>
-    <span id="status" style="color: #38bdf8; font-size: 0.9rem;">Loading MediaPipe...</span>
+    <span id="status" style="color: #38bdf8; font-size: 0.9rem;">Initializing MediaPipe Hands...</span>
   </div>
 
   <div id="stats">
@@ -86,6 +94,134 @@
     <canvas id="output_canvas"></canvas>
   </div>
 
-  <!-- ES Module Import for MediaPipe Tasks Vision -->
+  <script>
+    let cameraUtil = null;
+    let hands = null;
+    let useRearCamera = false; // Default to 'user' for desktop/front camera
+    const videoElement = document.getElementById('webcam');
+    const canvasElement = document.getElementById('output_canvas');
+    const canvasCtx = canvasElement.getContext('2d');
+
+    function updateCanvasSize() {
+      canvasElement.width = window.innerWidth;
+      canvasElement.height = window.innerHeight;
+    }
+    window.addEventListener('resize', updateCanvasSize);
+    updateCanvasSize();
+
+    async function initApp() {
+      try {
+        hands = new Hands({
+          locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+
+        hands.setOptions({
+          maxNumHands: 2,
+          modelComplexity: 1,
+          minDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5
+        });
+
+        hands.onResults(onResults);
+
+        startCamera();
+        document.getElementById('status').innerText = "MediaPipe Hands Ready! Show Both Hands.";
+      } catch (err) {
+        document.getElementById('status').innerText = "Init Error: " + err.message;
+      }
+    }
+
+    function startCamera() {
+      if (cameraUtil) {
+        try { cameraUtil.stop(); } catch(e){}
+      }
+
+      cameraUtil = new Camera(videoElement, {
+        onFrame: async () => {
+          if (hands) {
+            await hands.send({ image: videoElement });
+          }
+        },
+        width: 1280,
+        height: 720,
+        facingMode: useRearCamera ? "environment" : "user"
+      });
+
+      cameraUtil.start().catch(err => {
+        console.warn("Camera start warning:", err);
+      });
+    }
+
+    function toggleCamera() {
+      useRearCamera = !useRearCamera;
+      startCamera();
+    }
+
+    function onResults(results) {
+      canvasCtx.save();
+      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        document.getElementById('hand-count').innerText = `Detected Hands: ${results.multiHandLandmarks.length}`;
+        let handednessStr = [];
+
+        for (let i = 0; i < results.multiHandLandmarks.length; i++) {
+          const landmarks = results.multiHandLandmarks[i];
+          let label = "Right";
+          let score = "";
+
+          if (results.multiHandedness && results.multiHandedness[i]) {
+            label = results.multiHandedness[i].label; // "Left" or "Right"
+            score = Math.round(results.multiHandedness[i].score * 100) + "%";
+          }
+          handednessStr.push(`${label} (${score})`);
+
+          // Draw skeleton lines with DrawingUtils or custom canvas lines
+          if (window.drawConnectors && window.HAND_CONNECTIONS) {
+            drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
+              color: label === 'Right' ? '#00FFFF' : '#A855F7',
+              lineWidth: 4
+            });
+            drawLandmarks(canvasCtx, landmarks, {
+              color: '#FF0000',
+              lineWidth: 2,
+              radius: 5
+            });
+          } else {
+            // Custom fallback skeleton drawing
+            const CONNECTIONS = [
+              [0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],
+              [5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],
+              [13,17],[17,18],[18,19],[19,20],[0,17]
+            ];
+            canvasCtx.lineWidth = 4;
+            canvasCtx.strokeStyle = label === 'Right' ? '#00FFFF' : '#A855F7';
+            CONNECTIONS.forEach(([a, b]) => {
+              const p1 = landmarks[a];
+              const p2 = landmarks[b];
+              canvasCtx.beginPath();
+              canvasCtx.moveTo(p1.x * canvasElement.width, p1.y * canvasElement.height);
+              canvasCtx.lineTo(p2.x * canvasElement.width, p2.y * canvasElement.height);
+              canvasCtx.stroke();
+            });
+
+            landmarks.forEach((pt, idx) => {
+              canvasCtx.fillStyle = idx === 4 ? '#FF0000' : '#00FF00';
+              canvasCtx.beginPath();
+              canvasCtx.arc(pt.x * canvasElement.width, pt.y * canvasElement.height, 6, 0, 2 * Math.PI);
+              canvasCtx.fill();
+            });
+          }
+        }
+        document.getElementById('handedness-info').innerText = handednessStr.join(" | ");
+      } else {
+        document.getElementById('hand-count').innerText = "Detected Hands: 0";
+        document.getElementById('handedness-info').innerText = "Left: - | Right: -";
+      }
+      canvasCtx.restore();
+    }
+
+    window.addEventListener('DOMContentLoaded', initApp);
+  </script>
 </body>
 </html>

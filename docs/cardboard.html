@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cardboard & PC Mixed Reality Dual-Hand Finger Keyboard</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <!-- MediaPipe Hands & Utilities -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
   <!-- External Configuration File -->
   <script src="./js/config.js"></script>
   <style>
@@ -83,10 +87,9 @@
       object-fit: cover;
       z-index: -1;
       display: block;
+      transform: scaleX(-1);
     }
   </style>
-  <script type="module" crossorigin src="./assets/cardboard-h_FKJWJ7.js"></script>
-  <link rel="modulepreload" crossorigin href="./assets/modulepreload-polyfill-B5Qt9EMX.js">
 </head>
 <body>
   <!-- Live Camera Stream for Passthrough MR (Android & PC compatible) -->
@@ -94,20 +97,20 @@
 
   <!-- 2D Top Navigation & Controls Overlay -->
   <div id="ui-overlay">
-    <button onclick="window.togglePassthrough()">MR Passthrough: <span id="passthrough-label">ON</span></button>
-    <button onclick="window.toggleCamera()">Camera: <span id="cam-label">Rear</span></button>
+    <button onclick="togglePassthrough()">MR Passthrough: <span id="passthrough-label">ON</span></button>
+    <button onclick="toggleCamera()">Camera: <span id="cam-label">Front</span></button>
     <button onclick="window.location.href='mediapipe-test.html'">Test MediaPipe</button>
-    <button onclick="window.clearText()">Clear</button>
+    <button onclick="clearText()">Clear</button>
     <button onclick="window.location.href='index.html'">Menu</button>
-    <span id="status">Initializing Android & PC Dual-Hand Tracking...</span>
+    <span id="status">Initializing MediaPipe Hands...</span>
   </div>
 
-  <!-- 2D Bottom Text Output & WPM Overlay (WPM placed on LEFT of Output:) -->
+  <!-- 2D Bottom Text Output & WPM Overlay -->
   <div id="typed-display">
     <span class="wpm-badge">WPM: <span id="wpm-val" style="color: #10b981; font-weight: bold;">0</span></span> | Output: <span id="text-output" style="color: #38bdf8; font-weight: bold;"></span>
   </div>
 
-  <!-- 3D WebVR Scene (keyboard-shortcuts="enterVR: false" disables default 'F' fullscreen shortcut) -->
+  <!-- 3D WebVR Scene -->
   <a-scene background="transparent: true" renderer="alpha: true" keyboard-shortcuts="enterVR: false">
     <a-assets>
       <mixin id="key-btn" geometry="primitive: box; width: 0.12; height: 0.12; depth: 0.03" material="shader: flat; color: #1e293b"></mixin>
@@ -131,13 +134,13 @@
 
       <!-- 3D Scrollbar Container on Right Side of Screen -->
       <a-entity id="screen-scrollbar" position="0.8 0 0.02">
-        <a-entity id="btn-scroll-up" class="interactive-key" position="0 0.15 0.02" onclick="window.scrollTextUp()">
+        <a-entity id="btn-scroll-up" class="interactive-key" position="0 0.15 0.02" onclick="scrollTextUp()">
           <a-box width="0.08" height="0.08" depth="0.03" color="#0ea5e9" data-original-color="#0ea5e9" class="interactive-key"></a-box>
           <a-text value="^" align="center" color="white" width="1.8" position="0 0 0.02"></a-text>
         </a-entity>
         <a-plane position="0 0 0.01" width="0.03" height="0.22" color="#1e293b" opacity="0.8"></a-plane>
         <a-box id="scroll-thumb" position="0 0.05 0.02" width="0.04" height="0.06" color="#38bdf8"></a-box>
-        <a-entity id="btn-scroll-down" class="interactive-key" position="0 -0.15 0.02" onclick="window.scrollTextDown()">
+        <a-entity id="btn-scroll-down" class="interactive-key" position="0 -0.15 0.02" onclick="scrollTextDown()">
           <a-box width="0.08" height="0.08" depth="0.03" color="#0ea5e9" data-original-color="#0ea5e9" class="interactive-key"></a-box>
           <a-text value="v" align="center" color="white" width="1.8" position="0 0 0.02"></a-text>
         </a-entity>
@@ -178,7 +181,7 @@
       <a-entity id="right-thumb-actuator" position="0.2 -0.03 0.03"><a-sphere radius="0.02" color="#f43f5e" data-original-color="#f43f5e"></a-sphere><a-text value="Thumb" align="center" color="#f43f5e" width="0.7" position="0 -0.03 0" rotation="0 0 -90"></a-text></a-entity>
     </a-entity>
 
-    <!-- 4. LEFT HAND VIRTUAL RIG (M through X) at -1.1 4 -1.6 (Horizontally Mirrored) -->
+    <!-- 4. LEFT HAND VIRTUAL RIG (M through X) at -1.1 4 -1.6 -->
     <a-entity id="virtual-left-hand-rig" position="-1.1 4 -1.6" rotation="0 0 -90">
       <a-entity id="left-hand-mesh-reference">
         <a-box position="-0.02 0.02 -0.01" width="0.18" height="0.18" depth="0.015" color="#1e293b" opacity="0.65" data-original-color="#1e293b"></a-box>
@@ -222,6 +225,471 @@
     </a-entity>
   </a-scene>
 
-  <!-- ES Module Import for MediaPipe Tasks Vision -->
+  <script>
+    AFRAME.registerComponent('camera-arrow-controls', {
+      init: function () {
+        this.speed = 0.08;
+        this.keysPressed = {};
+        window.addEventListener('keydown', (e) => { this.keysPressed[e.key] = true; });
+        window.addEventListener('keyup', (e) => { this.keysPressed[e.key] = false; });
+      },
+      tick: function () {
+        const pos = this.el.getAttribute('position');
+        if (this.keysPressed['ArrowUp']) pos.z -= this.speed;
+        if (this.keysPressed['ArrowDown']) pos.z += this.speed;
+        if (this.keysPressed['ArrowLeft']) pos.x -= this.speed;
+        if (this.keysPressed['ArrowRight']) pos.x += this.speed;
+        if (this.keysPressed['PageUp']) pos.y += this.speed;
+        if (this.keysPressed['PageDown']) pos.y -= this.speed;
+        this.el.setAttribute('position', pos);
+      }
+    });
+
+    const C = window.APP_CONFIG || {
+      screen: { position: { x: 0, y: 4.0, z: -1.6 } },
+      qwerty: { position: { x: 0, y: 3.45, z: -1.45 } },
+      handRig: { defaultPosition: { x: 1.1, y: 4.0, z: -1.6 } },
+      gaze: { timeoutMs: 3000 },
+      tracking: { touchThreshold: 0.045, touchCooldownMs: 600 },
+      audio: { frequencyHz: 587.33, durationSec: 0.12, volume: 0.15 }
+    };
+
+    let typedText = '';
+    let useRearCamera = false; // Default to 'user' / front camera for laptop & desktop compatibility
+    let passthroughActive = true;
+    let hands = null;
+    let cameraUtil = null;
+    let isTrackingRightHand = false;
+    let isTrackingLeftHand = false;
+    let audioCtx = null;
+    let lastTouchTime = {};
+
+    let typingStartTime = null;
+    let wordCount = 0;
+    let currentWPM = 0;
+    let inactivityTimer = null;
+
+    let scrollOffset = 0;
+    const MAX_VISIBLE_LINES = 3;
+
+    // Right Hand (A-L) and Left Hand (M-X) Finger Segment Keys Maps
+    const rightSegmentKeys = [
+      { id: 'seg-A', char: 'A', landmark: 8 }, { id: 'seg-B', char: 'B', landmark: 7 }, { id: 'seg-C', char: 'C', landmark: 6 },
+      { id: 'seg-D', char: 'D', landmark: 12 }, { id: 'seg-E', char: 'E', landmark: 11 }, { id: 'seg-F', char: 'F', landmark: 10 },
+      { id: 'seg-G', char: 'G', landmark: 16 }, { id: 'seg-H', char: 'H', landmark: 15 }, { id: 'seg-I', char: 'I', landmark: 14 },
+      { id: 'seg-J', char: 'J', landmark: 20 }, { id: 'seg-K', char: 'K', landmark: 19 }, { id: 'seg-L', char: 'L', landmark: 18 }
+    ];
+
+    const leftSegmentKeys = [
+      { id: 'seg-M', char: 'M', landmark: 8 }, { id: 'seg-N', char: 'N', landmark: 7 }, { id: 'seg-O', char: 'O', landmark: 6 },
+      { id: 'seg-P', char: 'P', landmark: 12 }, { id: 'seg-Q', char: 'Q', landmark: 11 }, { id: 'seg-R', char: 'R', landmark: 10 },
+      { id: 'seg-S', char: 'S', landmark: 16 }, { id: 'seg-T', char: 'T', landmark: 15 }, { id: 'seg-U', char: 'U', landmark: 14 },
+      { id: 'seg-V', char: 'V', landmark: 20 }, { id: 'seg-W', char: 'W', landmark: 19 }, { id: 'seg-X', char: 'X', landmark: 18 }
+    ];
+
+    const qwertyRows = [
+      [
+        { char: 'CLEAR', label: 'CLEAR', width: 0.18, color: '#ef4444' },
+        { char: 'Q' }, { char: 'W' }, { char: 'E' }, { char: 'R' }, { char: 'T' },
+        { char: 'Y' }, { char: 'U' }, { char: 'I' }, { char: 'O' }, { char: 'P' },
+        { char: 'BACK', label: 'BACK', width: 0.18, color: '#f59e0b' }
+      ],
+      [
+        { char: 'A' }, { char: 'S' }, { char: 'D' }, { char: 'F' },
+        { char: 'G' }, { char: 'H' }, { char: 'J' }, { char: 'K' }, { char: 'L' }
+      ],
+      [
+        { char: 'Z' }, { char: 'X' }, { char: 'C' }, { char: 'V' },
+        { char: 'B' }, { char: 'N' }, { char: 'M' }
+      ],
+      [
+        { char: 'SPACE', label: 'SPACE BAR', width: 0.7, color: '#1e293b' }
+      ]
+    ];
+
+    function playBeepSound() {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(C.audio.frequencyHz, audioCtx.currentTime);
+        gain.gain.setValueAtTime(C.audio.volume, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + C.audio.durationSec);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + C.audio.durationSec);
+      } catch (e) { console.warn(e); }
+    }
+
+    function buildQwertyKeyboard() {
+      const container = document.getElementById('qwerty-keys-container');
+      if (!container) return;
+      container.innerHTML = '';
+
+      qwertyRows.forEach((row, rowIndex) => {
+        const yPos = -rowIndex * 0.15;
+        let rowWidth = 0;
+        row.forEach(item => { rowWidth += (item.width || 0.12) + 0.02; });
+        const startX = -rowWidth / 2 + 0.07;
+
+        let currentX = startX;
+        row.forEach((item) => {
+          const char = item.char;
+          const label = item.label || char;
+          const width = item.width || 0.12;
+          const color = item.color || '#1e293b';
+
+          const keyEl = document.createElement('a-entity');
+          keyEl.setAttribute('id', `qwerty-key-${char}`);
+          keyEl.setAttribute('class', 'interactive-key qwerty-key');
+          keyEl.setAttribute('position', `${currentX + width / 2 - 0.06} ${yPos} 0`);
+          keyEl.setAttribute('data-char', char);
+
+          const box = document.createElement('a-box');
+          box.setAttribute('width', width);
+          box.setAttribute('height', '0.12');
+          box.setAttribute('depth', '0.03');
+          box.setAttribute('color', color);
+          box.setAttribute('data-original-color', color);
+          keyEl.appendChild(box);
+
+          const text = document.createElement('a-text');
+          text.setAttribute('value', label);
+          text.setAttribute('align', 'center');
+          text.setAttribute('color', '#f8fafc');
+          text.setAttribute('width', width > 0.3 ? '2.4' : '1.8');
+          text.setAttribute('position', '0 0 0.02');
+          keyEl.appendChild(text);
+
+          keyEl.addEventListener('click', (e) => {
+            const keyEntity = e.currentTarget.closest('.interactive-key') || e.currentTarget;
+            const targetChar = keyEntity.getAttribute('data-char');
+            if (targetChar === 'SPACE') typeChar(' ');
+            else if (targetChar === 'BACK') handleBackspace();
+            else if (targetChar === 'CLEAR') clearText();
+            else typeChar(targetChar);
+          });
+
+          container.appendChild(keyEl);
+          currentX += width + 0.02;
+        });
+      });
+    }
+
+    function highlightKey(keyChar) {
+      const charUpper = keyChar.toUpperCase();
+      let keyEl = document.getElementById(`qwerty-key-${charUpper}`);
+      if (!keyEl && charUpper === ' ') keyEl = document.getElementById('qwerty-key-SPACE');
+      if (!keyEl) keyEl = document.getElementById(`seg-${charUpper}`);
+
+      if (keyEl) {
+        const box = keyEl.querySelector('a-box') || keyEl.querySelector('a-sphere') || keyEl;
+        if (box) {
+          const origColor = box.getAttribute('data-original-color') || box.getAttribute('color') || '#1e293b';
+          box.setAttribute('color', '#38bdf8');
+          box.setAttribute('scale', '1.15 1.15 1.15');
+          setTimeout(() => {
+            box.setAttribute('color', origColor);
+            box.setAttribute('scale', '1 1 1');
+          }, 300);
+        }
+      }
+    }
+
+    function updateWPM(char) {
+      if (inactivityTimer) clearTimeout(inactivityTimer);
+      inactivityTimer = setTimeout(() => { resetWPM(); }, 10000);
+      if (typingStartTime === null) typingStartTime = performance.now();
+      if (char === ' ') wordCount++;
+
+      const elapsedMinutes = (performance.now() - typingStartTime) / 60000;
+      currentWPM = elapsedMinutes > 0 ? Math.round(wordCount / elapsedMinutes) : 0;
+    }
+
+    function resetWPM() {
+      typingStartTime = null;
+      wordCount = 0;
+      currentWPM = 0;
+      updateDisplay();
+    }
+
+    function formatScreenLines(text, maxCharsPerLine = 32) {
+      if (!text) return ["Output: "];
+      const lines = [];
+      let currentLine = "";
+      for (let char of text) {
+        if (currentLine.length >= maxCharsPerLine) {
+          lines.push(currentLine);
+          currentLine = char;
+        } else {
+          currentLine += char;
+        }
+      }
+      if (currentLine) lines.push(currentLine);
+      return lines;
+    }
+
+    window.scrollTextUp = function() {
+      if (scrollOffset > 0) {
+        scrollOffset--;
+        updateDisplay();
+      }
+    };
+
+    window.scrollTextDown = function() {
+      const lines = formatScreenLines(typedText);
+      if (scrollOffset < Math.max(0, lines.length - MAX_VISIBLE_LINES)) {
+        scrollOffset++;
+        updateDisplay();
+      }
+    };
+
+    function typeChar(char) {
+      typedText += char;
+      updateWPM(char);
+      const lines = formatScreenLines(typedText);
+      scrollOffset = Math.max(0, lines.length - MAX_VISIBLE_LINES);
+      updateDisplay();
+      playBeepSound();
+      highlightKey(char === ' ' ? 'SPACE' : char);
+    }
+
+    function handleBackspace() {
+      if (typedText.length > 0) {
+        typedText = typedText.slice(0, -1);
+        updateWPM('');
+        const lines = formatScreenLines(typedText);
+        scrollOffset = Math.max(0, lines.length - MAX_VISIBLE_LINES);
+        updateDisplay();
+        playBeepSound();
+        highlightKey('BACK');
+      }
+    }
+
+    window.clearText = function() {
+      typedText = '';
+      scrollOffset = 0;
+      resetWPM();
+      highlightKey('CLEAR');
+    };
+
+    function updateDisplay() {
+      document.getElementById('text-output').innerText = typedText;
+      document.getElementById('wpm-val').innerText = currentWPM;
+
+      const lines = formatScreenLines(typedText);
+      const visibleLines = lines.slice(scrollOffset, scrollOffset + MAX_VISIBLE_LINES);
+      const formattedVrText = "Output: " + visibleLines.join("\n");
+
+      const vrText = document.getElementById('vr-text-output');
+      if (vrText) vrText.setAttribute('value', formattedVrText);
+
+      const vrWpm = document.getElementById('vr-wpm-output');
+      if (vrWpm) vrWpm.setAttribute('value', 'WPM: ' + currentWPM);
+
+      const thumb = document.getElementById('scroll-thumb');
+      if (thumb) {
+        const totalMaxScroll = Math.max(1, lines.length - MAX_VISIBLE_LINES);
+        const progress = lines.length <= MAX_VISIBLE_LINES ? 0 : scrollOffset / totalMaxScroll;
+        const thumbY = 0.08 - progress * 0.16;
+        thumb.setAttribute('position', `0 ${thumbY} 0.02`);
+      }
+    }
+
+    function startCamera() {
+      const videoElement = document.getElementById('passthrough-video');
+      if (cameraUtil) { try { cameraUtil.stop(); } catch(e){} }
+
+      cameraUtil = new Camera(videoElement, {
+        onFrame: async () => {
+          if (hands) await hands.send({ image: videoElement });
+        },
+        width: 1280,
+        height: 720,
+        facingMode: useRearCamera ? "environment" : "user"
+      });
+      cameraUtil.start().catch(e => console.warn(e));
+    }
+
+    window.togglePassthrough = function() {
+      passthroughActive = !passthroughActive;
+      const video = document.getElementById('passthrough-video');
+      video.style.display = passthroughActive ? 'block' : 'none';
+      document.getElementById('passthrough-label').innerText = passthroughActive ? 'ON' : 'OFF';
+      document.getElementById('status').innerText = passthroughActive ? "MR Passthrough Active (Webcam)" : "Virtual VR Room Active";
+    };
+
+    window.toggleCamera = function() {
+      useRearCamera = !useRearCamera;
+      document.getElementById('cam-label').innerText = useRearCamera ? 'Rear' : 'Front';
+      startCamera();
+    };
+
+    function initMediaPipe() {
+      try {
+        hands = new Hands({
+          locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+
+        hands.setOptions({
+          maxNumHands: 2,
+          modelComplexity: 1,
+          minDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5
+        });
+
+        hands.onResults(onResults);
+        startCamera();
+        document.getElementById('status').innerText = "Dual-Hand Tracking Ready! Show Both Hands or Gaze 3s.";
+      } catch (e) {
+        console.warn(e);
+        document.getElementById('status').innerText = "Gaze 3s & Mouse Ready!";
+      }
+    }
+
+    function onResults(results) {
+      const now = performance.now();
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        let foundRight = false;
+        let foundLeft = false;
+
+        for (let i = 0; i < results.multiHandLandmarks.length; i++) {
+          const landmarks = results.multiHandLandmarks[i];
+          let label = "Right";
+          if (results.multiHandedness && results.multiHandedness[i]) {
+            label = results.multiHandedness[i].label; // "Left" or "Right"
+          }
+
+          const wrist = landmarks[0];
+          const thumbTip = landmarks[4];
+
+          if (label === 'Right') {
+            foundRight = true;
+            isTrackingRightHand = true;
+            const rightRig = document.getElementById('virtual-right-hand-rig');
+            if (rightRig) {
+              const rx = (wrist.x - 0.5) * -1.2;
+              const ry = (1.0 - wrist.y - 0.5) * 1.2 + 1.25;
+              const rz = (wrist.z - 0.2) * -1.2 - 0.8;
+              rightRig.setAttribute('position', `${rx} ${ry} ${rz}`);
+            }
+            rightSegmentKeys.forEach(key => {
+              const joint = landmarks[key.landmark];
+              if (joint) {
+                const segEl = document.getElementById(key.id);
+                if (segEl) {
+                  segEl.setAttribute('position', `${(joint.x - wrist.x) * -1.2} ${(wrist.y - joint.y) * 1.2} 0.02`);
+                }
+                const dist = Math.sqrt(Math.pow(thumbTip.x - joint.x, 2) + Math.pow(thumbTip.y - joint.y, 2) + Math.pow(thumbTip.z - joint.z, 2));
+                if (dist < C.tracking.touchThreshold) {
+                  if (!lastTouchTime[key.char] || (now - lastTouchTime[key.char] > C.tracking.touchCooldownMs)) {
+                    lastTouchTime[key.char] = now;
+                    typeChar(key.char);
+                  }
+                }
+              }
+            });
+          } else if (label === 'Left') {
+            foundLeft = true;
+            isTrackingLeftHand = true;
+            const leftRig = document.getElementById('virtual-left-hand-rig');
+            if (leftRig) {
+              const lx = (wrist.x - 0.5) * -1.2;
+              const ly = (1.0 - wrist.y - 0.5) * 1.2 + 1.25;
+              const lz = (wrist.z - 0.2) * -1.2 - 0.8;
+              leftRig.setAttribute('position', `${lx} ${ly} ${lz}`);
+            }
+            leftSegmentKeys.forEach(key => {
+              const joint = landmarks[key.landmark];
+              if (joint) {
+                const segEl = document.getElementById(key.id);
+                if (segEl) {
+                  segEl.setAttribute('position', `${(joint.x - wrist.x) * -1.2} ${(wrist.y - joint.y) * 1.2} 0.02`);
+                }
+                const dist = Math.sqrt(Math.pow(thumbTip.x - joint.x, 2) + Math.pow(thumbTip.y - joint.y, 2) + Math.pow(thumbTip.z - joint.z, 2));
+                if (dist < C.tracking.touchThreshold) {
+                  if (!lastTouchTime[key.char] || (now - lastTouchTime[key.char] > C.tracking.touchCooldownMs)) {
+                    lastTouchTime[key.char] = now;
+                    typeChar(key.char);
+                  }
+                }
+              }
+            });
+          }
+        }
+
+        if (!foundRight && isTrackingRightHand) {
+          isTrackingRightHand = false;
+          document.getElementById('virtual-right-hand-rig').setAttribute('position', '1.1 4 -1.6');
+        }
+        if (!foundLeft && isTrackingLeftHand) {
+          isTrackingLeftHand = false;
+          document.getElementById('virtual-left-hand-rig').setAttribute('position', '-1.1 4 -1.6');
+        }
+      } else {
+        if (isTrackingRightHand) {
+          isTrackingRightHand = false;
+          document.getElementById('virtual-right-hand-rig').setAttribute('position', '1.1 4 -1.6');
+        }
+        if (isTrackingLeftHand) {
+          isTrackingLeftHand = false;
+          document.getElementById('virtual-left-hand-rig').setAttribute('position', '-1.1 4 -1.6');
+        }
+      }
+    }
+
+    window.addEventListener('keydown', (e) => {
+      const key = e.key.toUpperCase();
+      if (key >= 'A' && key <= 'Z' && key.length === 1) {
+        typeChar(key);
+      } else if (e.key === ' ') {
+        e.preventDefault();
+        typeChar(' ');
+      } else if (e.key === 'Backspace') {
+        e.preventDefault();
+        handleBackspace();
+      }
+    });
+
+    window.addEventListener('wheel', (e) => {
+      if (e.deltaY < 0) scrollTextUp();
+      else if (e.deltaY > 0) scrollTextDown();
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      buildQwertyKeyboard();
+      initMediaPipe();
+
+      [...rightSegmentKeys, ...leftSegmentKeys].forEach(key => {
+        const segEl = document.getElementById(key.id);
+        if (segEl) {
+          segEl.addEventListener('click', (e) => {
+            const keyEntity = e.currentTarget.closest('.interactive-key') || e.currentTarget;
+            const char = keyEntity.getAttribute('data-char');
+            if (char) typeChar(char);
+          });
+        }
+      });
+
+      const gazeCursor = document.getElementById('gaze-cursor');
+      if (gazeCursor) {
+        gazeCursor.addEventListener('click', function () {
+          gazeCursor.setAttribute('scale', '1 1 1');
+          const cursorComp = gazeCursor.components.cursor;
+          if (cursorComp) {
+            cursorComp.fusing = false;
+            setTimeout(() => {
+              if (cursorComp.intersectedEl) {
+                cursorComp.startFusing(cursorComp.intersectedEl);
+              }
+            }, 150);
+          }
+        });
+      }
+    });
+  </script>
 </body>
 </html>

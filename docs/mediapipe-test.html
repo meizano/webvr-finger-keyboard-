@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MediaPipe Dual-Hand Tracking & Skeleton Test</title>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/vision_bundle.js" crossorigin="anonymous"></script>
   <style>
     body {
       margin: 0;
@@ -65,10 +64,12 @@
       object-fit: cover;
     }
   </style>
+  <script type="module" crossorigin src="./assets/mediapipeTest-UT21FmTt.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/modulepreload-polyfill-B5Qt9EMX.js">
 </head>
 <body>
   <div id="ui-bar">
-    <button onclick="toggleCamera()">Toggle Camera (Rear/Front)</button>
+    <button onclick="window.toggleCamera()">Toggle Camera (Rear/Front)</button>
     <button onclick="window.location.href='cardboard.html'">Open VR App</button>
     <button onclick="window.location.href='index.html'">Back to Menu</button>
     <span id="status" style="color: #38bdf8; font-size: 0.9rem;">Loading MediaPipe...</span>
@@ -85,145 +86,6 @@
     <canvas id="output_canvas"></canvas>
   </div>
 
-  <script>
-    let handLandmarker = null;
-    let useRearCamera = true;
-    let video = document.getElementById('webcam');
-    let canvas = document.getElementById('output_canvas');
-    let ctx = canvas.getContext('2d');
-
-    // Official Hand Skeleton Connections (21 Landmarks)
-    const HAND_CONNECTIONS = [
-      [0, 1], [1, 2], [2, 3], [3, 4],       // Thumb
-      [0, 5], [5, 6], [6, 7], [7, 8],       // Index
-      [5, 9], [9, 10], [10, 11], [11, 12],  // Middle
-      [9, 13], [13, 14], [14, 15], [15, 16],// Ring
-      [13, 17], [17, 18], [18, 19], [19, 20],// Pinky
-      [0, 17]                              // Palm Base
-    ];
-
-    async function initMediaPipe() {
-      try {
-        const { HandLandmarker, FilesetResolver } = window.vision;
-        const vision = await FilesetResolver.forVisionTasks(
-          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
-        );
-
-        const delegates = ["GPU", "CPU"];
-        for (let delegate of delegates) {
-          try {
-            handLandmarker = await HandLandmarker.createFromOptions(vision, {
-              baseOptions: {
-                modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`,
-                delegate: delegate
-              },
-              runningMode: "VIDEO",
-              numHands: 2, // Detect BOTH hands!
-              minHandDetectionConfidence: 0.5,
-              minHandPresenceConfidence: 0.5,
-              minTrackingConfidence: 0.5
-            });
-            document.getElementById('status').innerText = `MediaPipe Ready (${delegate})! Show Both Hands.`;
-            break;
-          } catch (e) { console.warn(e); }
-        }
-        startCamera();
-      } catch (e) {
-        document.getElementById('status').innerText = "Init Error: " + e.message;
-      }
-    }
-
-    async function startCamera() {
-      if (window.stream) {
-        window.stream.getTracks().forEach(track => track.stop());
-      }
-      const constraintsList = [
-        { video: { facingMode: useRearCamera ? { exact: "environment" } : "user", width: { ideal: 1280 }, height: { ideal: 720 } } },
-        { video: { facingMode: useRearCamera ? "environment" : "user", width: { ideal: 640 }, height: { ideal: 480 } } },
-        { video: true }
-      ];
-
-      for (let constraints of constraintsList) {
-        try {
-          window.stream = await navigator.mediaDevices.getUserMedia(constraints);
-          video.srcObject = window.stream;
-          video.setAttribute('playsinline', '');
-          video.setAttribute('muted', '');
-          await video.play();
-          video.addEventListener('loadeddata', predictLoop);
-          break;
-        } catch (e) { console.warn(e); }
-      }
-    }
-
-    function toggleCamera() {
-      useRearCamera = !useRearCamera;
-      startCamera();
-    }
-
-    let lastVideoTime = -1;
-    function predictLoop() {
-      if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
-        canvas.width = video.videoWidth || window.innerWidth;
-        canvas.height = video.videoHeight || window.innerHeight;
-      }
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      if (handLandmarker && video.readyState >= 2 && video.currentTime !== lastVideoTime) {
-        lastVideoTime = video.currentTime;
-        const results = handLandmarker.detectForVideo(video, performance.now());
-
-        if (results.landmarks && results.landmarks.length > 0) {
-          document.getElementById('hand-count').innerText = `Detected Hands: ${results.landmarks.length}`;
-          let handednessStr = [];
-
-          results.landmarks.forEach((landmarks, index) => {
-            let label = "Hand " + (index + 1);
-            let score = "";
-            if (results.handedness && results.handedness[index]) {
-              label = results.handedness[index][0].categoryName || label;
-              score = Math.round(results.handedness[index][0].score * 100) + "%";
-            }
-            handednessStr.push(`${label} (${score})`);
-
-            // Draw Skeleton Bones
-            ctx.lineWidth = 4;
-            ctx.strokeStyle = label === "Right" ? "#38bdf8" : "#a855f7"; // Cyan for Right, Purple for Left
-
-            HAND_CONNECTIONS.forEach(([i, j]) => {
-              const p1 = landmarks[i];
-              const p2 = landmarks[j];
-              ctx.beginPath();
-              ctx.moveTo(p1.x * canvas.width, p1.y * canvas.height);
-              ctx.lineTo(p2.x * canvas.width, p2.y * canvas.height);
-              ctx.stroke();
-            });
-
-            // Draw 21 Joint Landmark Points
-            landmarks.forEach((pt, lmIdx) => {
-              ctx.beginPath();
-              ctx.arc(pt.x * canvas.width, pt.y * canvas.height, 6, 0, 2 * Math.PI);
-              ctx.fillStyle = lmIdx === 4 ? "#ef4444" : "#10b981"; // Red for Thumb tip, Green for others
-              ctx.fill();
-
-              // Draw Landmark Index
-              ctx.fillStyle = "#ffffff";
-              ctx.font = "12px sans-serif";
-              ctx.fillText(lmIdx, pt.x * canvas.width + 8, pt.y * canvas.height + 4);
-            });
-          });
-
-          document.getElementById('handedness-info').innerText = handednessStr.join(" | ");
-        } else {
-          document.getElementById('hand-count').innerText = "Detected Hands: 0";
-          document.getElementById('handedness-info').innerText = "Left: - | Right: -";
-        }
-      }
-      requestAnimationFrame(predictLoop);
-    }
-
-    window.addEventListener('DOMContentLoaded', initMediaPipe);
-  </script>
+  <!-- ES Module Import for MediaPipe Tasks Vision -->
 </body>
 </html>

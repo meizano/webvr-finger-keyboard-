@@ -5,8 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cardboard & PC Mixed Reality Dual-Hand Finger Keyboard</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-  <!-- MediaPipe Tasks Vision Bundle -->
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/vision_bundle.js" crossorigin="anonymous"></script>
   <!-- External Configuration File -->
   <script src="./js/config.js"></script>
   <style>
@@ -94,10 +92,10 @@
 
   <!-- 2D Top Navigation & Controls Overlay -->
   <div id="ui-overlay">
-    <button onclick="togglePassthrough()">MR Passthrough: <span id="passthrough-label">ON</span></button>
-    <button onclick="toggleCamera()">Camera: <span id="cam-label">Rear</span></button>
+    <button onclick="window.togglePassthrough()">MR Passthrough: <span id="passthrough-label">ON</span></button>
+    <button onclick="window.toggleCamera()">Camera: <span id="cam-label">Rear</span></button>
     <button onclick="window.location.href='mediapipe-test.html'">Test MediaPipe</button>
-    <button onclick="clearText()">Clear</button>
+    <button onclick="window.clearText()">Clear</button>
     <button onclick="window.location.href='index.html'">Menu</button>
     <span id="status">Initializing Android & PC Dual-Hand Tracking...</span>
   </div>
@@ -131,13 +129,13 @@
 
       <!-- 3D Scrollbar Container on Right Side of Screen -->
       <a-entity id="screen-scrollbar" position="0.8 0 0.02">
-        <a-entity id="btn-scroll-up" class="interactive-key" position="0 0.15 0.02" onclick="scrollTextUp()">
+        <a-entity id="btn-scroll-up" class="interactive-key" position="0 0.15 0.02" onclick="window.scrollTextUp()">
           <a-box width="0.08" height="0.08" depth="0.03" color="#0ea5e9" data-original-color="#0ea5e9" class="interactive-key"></a-box>
           <a-text value="^" align="center" color="white" width="1.8" position="0 0 0.02"></a-text>
         </a-entity>
         <a-plane position="0 0 0.01" width="0.03" height="0.22" color="#1e293b" opacity="0.8"></a-plane>
         <a-box id="scroll-thumb" position="0 0.05 0.02" width="0.04" height="0.06" color="#38bdf8"></a-box>
-        <a-entity id="btn-scroll-down" class="interactive-key" position="0 -0.15 0.02" onclick="scrollTextDown()">
+        <a-entity id="btn-scroll-down" class="interactive-key" position="0 -0.15 0.02" onclick="window.scrollTextDown()">
           <a-box width="0.08" height="0.08" depth="0.03" color="#0ea5e9" data-original-color="#0ea5e9" class="interactive-key"></a-box>
           <a-text value="v" align="center" color="white" width="1.8" position="0 0 0.02"></a-text>
         </a-entity>
@@ -187,22 +185,18 @@
       </a-entity>
 
       <!-- 12 LEFT FINGER SEGMENT BUTTONS (M-X) -->
-      <!-- Left Index Finger -> M, N, O -->
       <a-entity id="seg-M" position="-0.12 0.1 0.02" class="interactive-key seg-key" data-char="M"><a-sphere radius="0.022" color="#ef4444" data-original-color="#ef4444"></a-sphere><a-text value="M\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 90" text="value: M"></a-text></a-entity>
       <a-entity id="seg-N" position="-0.12 0.03 0.02" class="interactive-key seg-key" data-char="N"><a-sphere radius="0.022" color="#f97316" data-original-color="#f97316"></a-sphere><a-text value="N\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 90" text="value: N"></a-text></a-entity>
       <a-entity id="seg-O" position="-0.12 -0.04 0.02" class="interactive-key seg-key" data-char="O"><a-sphere radius="0.022" color="#facc15" data-original-color="#facc15"></a-sphere><a-text value="O\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 90" text="value: O"></a-text></a-entity>
 
-      <!-- Left Middle Finger -> P, Q, R -->
       <a-entity id="seg-P" position="-0.06 0.12 0.02" class="interactive-key seg-key" data-char="P"><a-sphere radius="0.022" color="#22c55e" data-original-color="#22c55e"></a-sphere><a-text value="P\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 90" text="value: P"></a-text></a-entity>
       <a-entity id="seg-Q" position="-0.06 0.05 0.02" class="interactive-key seg-key" data-char="Q"><a-sphere radius="0.022" color="#10b981" data-original-color="#10b981"></a-sphere><a-text value="Q\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 90" text="value: Q"></a-text></a-entity>
       <a-entity id="seg-R" position="-0.06 -0.02 0.02" class="interactive-key seg-key" data-char="R"><a-sphere radius="0.022" color="#14b8a6" data-original-color="#14b8a6"></a-sphere><a-text value="R\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 90" text="value: R"></a-text></a-entity>
 
-      <!-- Left Ring Finger -> S, T, U -->
       <a-entity id="seg-S" position="0 0.1 0.02" class="interactive-key seg-key" data-char="S"><a-sphere radius="0.022" color="#06b6d4" data-original-color="#06b6d4"></a-sphere><a-text value="S\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 90" text="value: S"></a-text></a-entity>
       <a-entity id="seg-T" position="0 0.03 0.02" class="interactive-key seg-key" data-char="T"><a-sphere radius="0.022" color="#3b82f6" data-original-color="#3b82f6"></a-sphere><a-text value="T\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 90" text="value: T"></a-text></a-entity>
       <a-entity id="seg-U" position="0 -0.04 0.02" class="interactive-key seg-key" data-char="U"><a-sphere radius="0.022" color="#6366f1" data-original-color="#6366f1"></a-sphere><a-text value="U\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 90" text="value: U"></a-text></a-entity>
 
-      <!-- Left Little Finger -> V, W, X -->
       <a-entity id="seg-V" position="0.06 0.07 0.02" class="interactive-key seg-key" data-char="V"><a-sphere radius="0.022" color="#8b5cf6" data-original-color="#8b5cf6"></a-sphere><a-text value="V\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 90" text="value: V"></a-text></a-entity>
       <a-entity id="seg-W" position="0.06 0.01 0.02" class="interactive-key seg-key" data-char="W"><a-sphere radius="0.022" color="#a855f7" data-original-color="#a855f7"></a-sphere><a-text value="W\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 90" text="value: W"></a-text></a-entity>
       <a-entity id="seg-X" position="0.06 -0.05 0.02" class="interactive-key seg-key" data-char="X"><a-sphere radius="0.022" color="#ec4899" data-original-color="#ec4899"></a-sphere><a-text value="X\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 90" text="value: X"></a-text></a-entity>
@@ -210,11 +204,7 @@
       <a-entity id="left-thumb-actuator" position="-0.2 -0.03 0.03"><a-sphere radius="0.02" color="#f43f5e" data-original-color="#f43f5e"></a-sphere><a-text value="Thumb" align="center" color="#f43f5e" width="0.7" position="0 -0.03 0" rotation="0 0 90"></a-text></a-entity>
     </a-entity>
 
-    <!-- 5. 3D HAND SKELETON BONE OVERLAYS -->
-    <a-entity id="right-hand-skeleton-overlay"></a-entity>
-    <a-entity id="left-hand-skeleton-overlay"></a-entity>
-
-    <!-- 6. CAMERA RIG WITH ARROW + PAGEUP/PAGEDOWN CONTROLS -->
+    <!-- 5. CAMERA RIG WITH ARROW + PAGEUP/PAGEDOWN CONTROLS -->
     <a-entity id="rig" position="0 1.6 0" camera-arrow-controls>
       <a-camera id="camera" look-controls="enabled: true" wasd-controls="enabled: false">
         <a-entity id="gaze-cursor"
@@ -230,7 +220,10 @@
     </a-entity>
   </a-scene>
 
-  <script>
+  <!-- ES Module Import for MediaPipe Tasks Vision -->
+  <script type="module">
+    import { HandLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0";
+
     AFRAME.registerComponent('camera-arrow-controls', {
       init: function () {
         this.speed = 0.08;
@@ -276,7 +269,6 @@
     let scrollOffset = 0;
     const MAX_VISIBLE_LINES = 3;
 
-    // Right Hand (A-L) and Left Hand (M-X) Finger Segment Keys Maps
     const rightSegmentKeys = [
       { id: 'seg-A', char: 'A', landmark: 8 }, { id: 'seg-B', char: 'B', landmark: 7 }, { id: 'seg-C', char: 'C', landmark: 6 },
       { id: 'seg-D', char: 'D', landmark: 12 }, { id: 'seg-E', char: 'E', landmark: 11 }, { id: 'seg-F', char: 'F', landmark: 10 },
@@ -436,20 +428,20 @@
       return lines;
     }
 
-    function scrollTextUp() {
+    window.scrollTextUp = function() {
       if (scrollOffset > 0) {
         scrollOffset--;
         updateDisplay();
       }
-    }
+    };
 
-    function scrollTextDown() {
+    window.scrollTextDown = function() {
       const lines = formatScreenLines(typedText);
       if (scrollOffset < Math.max(0, lines.length - MAX_VISIBLE_LINES)) {
         scrollOffset++;
         updateDisplay();
       }
-    }
+    };
 
     function typeChar(char) {
       typedText += char;
@@ -473,12 +465,12 @@
       }
     }
 
-    function clearText() {
+    window.clearText = function() {
       typedText = '';
       scrollOffset = 0;
       resetWPM();
       highlightKey('CLEAR');
-    }
+    };
 
     function updateDisplay() {
       document.getElementById('text-output').innerText = typedText;
@@ -526,23 +518,22 @@
       }
     }
 
-    function togglePassthrough() {
+    window.togglePassthrough = function() {
       passthroughActive = !passthroughActive;
       const video = document.getElementById('passthrough-video');
       video.style.display = passthroughActive ? 'block' : 'none';
       document.getElementById('passthrough-label').innerText = passthroughActive ? 'ON' : 'OFF';
       document.getElementById('status').innerText = passthroughActive ? "MR Passthrough Active (Webcam)" : "Virtual VR Room Active";
-    }
+    };
 
-    function toggleCamera() {
+    window.toggleCamera = function() {
       useRearCamera = !useRearCamera;
       document.getElementById('cam-label').innerText = useRearCamera ? 'Rear' : 'Front';
       initCamera();
-    }
+    };
 
     async function initMediaPipe() {
       try {
-        const { HandLandmarker, FilesetResolver } = window.vision;
         const vision = await FilesetResolver.forVisionTasks(
           "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
         );

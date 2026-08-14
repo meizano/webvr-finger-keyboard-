@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cardboard V3 - TensorFlow Handpose & Handsfree.js Finger Keyboard</title>
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <!-- Handsfree.js & TensorFlow Handpose -->
+  <link rel="stylesheet" href="https://unpkg.com/handsfree@8.5.1/build/lib/handsfree.css" />
+  <script src="https://unpkg.com/handsfree@8.5.1/build/lib/handsfree.js"></script>
+  <!-- External Configuration File -->
+  <script src="./js/config.js"></script>
+  <style>
+    body {
+      margin: 0;
+      background: #090d16;
+      color: #f8fafc;
+      font-family: system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+    }
+    #ui-bar {
+      position: fixed;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      background: rgba(15, 23, 42, 0.9);
+      padding: 10px 18px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+      backdrop-filter: blur(8px);
+    }
+    button {
+      background: #8b5cf6;
+      color: white;
+      border: none;
+      padding: 7px 13px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    button:hover { background: #7c3aed; }
+    #typed-display {
+      position: fixed;
+      bottom: 15px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      background: rgba(15, 23, 42, 0.92);
+      padding: 8px 20px;
+      border-radius: 10px;
+      border: 1px solid #8b5cf6;
+      font-size: 0.95rem;
+      letter-spacing: 0.5px;
+      min-width: 360px;
+      text-align: center;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 15px rgba(139, 92, 246, 0.25);
+    }
+    #container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+    }
+    canvas, a-scene {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    #tf_canvas {
+      object-fit: cover;
+      transform: scaleX(-1);
+      z-index: 1;
+    }
+    a-scene {
+      z-index: 10;
+    }
+    /* Hide Handsfree default debugger overlays if present */
+    .handsfree-debugger {
+      opacity: 0.2 !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="ui-bar">
+    <button onclick="window.clearText()">Clear</button>
+    <button onclick="window.location.href='index.html'">Menu</button>
+    <span id="status" style="color: #a855f7; font-size: 0.85rem;">Initializing TensorFlow Handpose...</span>
+  </div>
+
+  <div id="typed-display">
+    <span style="color: #10b981; font-weight: bold;">WPM: <span id="wpm-val">0</span></span> | Output: <span id="text-output" style="color: #a855f7; font-weight: bold;"></span>
+  </div>
+
+  <div id="container">
+    <canvas id="tf_canvas"></canvas>
+
+    <!-- A-Frame 3D Layer Overlaid Directly on Top of Canvas & Video -->
+    <a-scene background="transparent: true" renderer="alpha: true" keyboard-shortcuts="enterVR: false">
+      <a-assets>
+        <mixin id="key-btn" geometry="primitive: box; width: 0.12; height: 0.12; depth: 0.03" material="shader: flat; color: #1e293b"></mixin>
+        <mixin id="seg-btn" geometry="primitive: sphere; radius: 0.022" material="shader: flat; color: #a855f7; opacity: 0.9"></mixin>
+      </a-assets>
+
+      <!-- Mouse Pointer Raycaster for Desktop Mouse Selection -->
+      <a-entity cursor="rayOrigin: mouse" raycaster="objects: .interactive-key, a-sphere, a-box, .clickable"></a-entity>
+
+      <!-- Lighting -->
+      <a-entity light="type: ambient; color: #ffffff; intensity: 0.9"></a-entity>
+      <a-entity light="type: directional; color: #a855f7; intensity: 0.6" position="1 3 2"></a-entity>
+
+      <!-- 1. Floating Output Display Screen (Positioned at Y=1.9, Z=-1.6) -->
+      <a-entity id="floating-screen" position="0 1.9 -1.6">
+        <a-plane width="1.8" height="0.48" color="#0f172a" opacity="0.88" material="shader: flat" position="0 0 -0.05"></a-plane>
+        <a-box width="1.82" height="0.5" depth="0.01" color="#a855f7" opacity="0.3" position="0 0 -0.06"></a-box>
+        
+        <!-- Wrapped Output Text Display -->
+        <a-text id="vr-text-output" value="Output: " align="left" color="#a855f7" width="2.4" position="-0.78 0.1 0.02" font="dejavu"></a-text>
+
+        <!-- 3D Scrollbar Container on Right Side of Screen -->
+        <a-entity id="screen-scrollbar" position="0.8 0 0.02">
+          <a-entity id="btn-scroll-up" class="interactive-key" position="0 0.15 0.02" onclick="window.scrollTextUp()">
+            <a-box width="0.08" height="0.08" depth="0.03" color="#8b5cf6" data-original-color="#8b5cf6" class="interactive-key"></a-box>
+            <a-text value="^" align="center" color="white" width="1.8" position="0 0 0.02"></a-text>
+          </a-entity>
+          <a-plane position="0 0 0.01" width="0.03" height="0.22" color="#1e293b" opacity="0.8"></a-plane>
+          <a-box id="scroll-thumb" position="0 0.05 0.02" width="0.04" height="0.06" color="#a855f7"></a-box>
+          <a-entity id="btn-scroll-down" class="interactive-key" position="0 -0.15 0.02" onclick="window.scrollTextDown()">
+            <a-box width="0.08" height="0.08" depth="0.03" color="#8b5cf6" data-original-color="#8b5cf6" class="interactive-key"></a-box>
+            <a-text value="v" align="center" color="white" width="1.8" position="0 0 0.02"></a-text>
+          </a-entity>
+        </a-entity>
+      </a-entity>
+
+      <!-- 2. SYNCHRONIZED 3D QWERTY KEYBOARD (POSITIONED AT Y=1.3 IN VIEW) -->
+      <a-entity id="qwerty-keyboard" position="0 1.3 -1.45" rotation="-15 0 0">
+        <a-entity id="qwerty-keys-container"></a-entity>
+        <a-text id="vr-wpm-output" value="WPM: 0" align="center" color="#10b981" width="2.4" position="0 -0.65 0.02" font="dejavu"></a-text>
+
+        <!-- 3D Menu Button in VR Space -->
+        <a-entity position="0 -0.9 0.02" class="interactive-key" onclick="window.location.href='index.html'">
+          <a-box width="0.6" height="0.14" depth="0.03" color="#8b5cf6" data-original-color="#8b5cf6" class="interactive-key"></a-box>
+          <a-text value="MAIN MENU" align="center" color="white" width="1.6" position="0 0 0.02"></a-text>
+        </a-entity>
+      </a-entity>
+
+      <!-- 3. RIGHT HAND VIRTUAL RIG (A through L) at 0.75 1.3 -1.2 -->
+      <a-entity id="virtual-right-hand-rig" position="0.75 1.3 -1.2" rotation="0 0 0">
+        <a-entity id="right-hand-mesh-reference">
+          <a-box position="0.02 0.02 -0.01" width="0.18" height="0.18" depth="0.015" color="#1e293b" opacity="0.65" data-original-color="#1e293b" rotation="0 0 0"></a-box>
+          <a-cylinder position="-0.08 -0.08 -0.01" rotation="0 0 0" radius="0.012" height="0.14" color="#334155" opacity="0.65"></a-cylinder>
+          <a-text value="RIGHT HAND (A-L)" align="center" color="#94a3b8" width="1.1" position="-0.12 0.02 0.02" rotation="0 0 0" text="value: R. HAND"></a-text>
+        </a-entity>
+
+        <!-- 12 RIGHT FINGER SEGMENT BUTTONS (A-L) -->
+        <a-entity id="seg-A" position="0.12 0.1 0.02" class="interactive-key seg-key" data-char="A" rotation="0 0 0"><a-sphere radius="0.022" color="#ef4444" data-original-color="#ef4444" rotation="0 0 0"></a-sphere><a-text value="A\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 0" text="value: A"></a-text></a-entity>
+        <a-entity id="seg-B" position="0.12 0.03 0.02" class="interactive-key seg-key" data-char="B" rotation="0 0 0"><a-sphere radius="0.022" color="#f97316" data-original-color="#f97316" rotation="0 0 0"></a-sphere><a-text value="B\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 0" text="value: B"></a-text></a-entity>
+        <a-entity id="seg-C" position="0.12 -0.04 0.02" class="interactive-key seg-key" data-char="C" rotation="0 0 0"><a-sphere radius="0.022" color="#facc15" data-original-color="#facc15" rotation="0 0 0"></a-sphere><a-text value="C\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 0" text="value: C"></a-text></a-entity>
+
+        <a-entity id="seg-D" position="0.06 0.12 0.02" class="interactive-key seg-key" data-char="D" rotation="0 0 0"><a-sphere radius="0.022" color="#22c55e" data-original-color="#22c55e" rotation="0 0 0"></a-sphere><a-text value="D\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 0" text="value: D"></a-text></a-entity>
+        <a-entity id="seg-E" position="0.06 0.05 0.02" class="interactive-key seg-key" data-char="E" rotation="0 0 0"><a-sphere radius="0.022" color="#10b981" data-original-color="#10b981" rotation="0 0 0"></a-sphere><a-text value="E\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 0" text="value: E"></a-text></a-entity>
+        <a-entity id="seg-F" position="0.06 -0.02 0.02" class="interactive-key seg-key" data-char="F" rotation="0 0 0"><a-sphere radius="0.022" color="#14b8a6" data-original-color="#14b8a6" rotation="0 0 0"></a-sphere><a-text value="F\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 0" text="value: F"></a-text></a-entity>
+
+        <a-entity id="seg-G" position="0 0.1 0.02" class="interactive-key seg-key" data-char="G" rotation="0 0 0"><a-sphere radius="0.022" color="#06b6d4" data-original-color="#06b6d4" rotation="0 0 0"></a-sphere><a-text value="G\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 0" text="value: G"></a-text></a-entity>
+        <a-entity id="seg-H" position="0 0.03 0.02" class="interactive-key seg-key" data-char="H" rotation="0 0 0"><a-sphere radius="0.022" color="#3b82f6" data-original-color="#3b82f6" rotation="0 0 0"></a-sphere><a-text value="H\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 0" text="value: H"></a-text></a-entity>
+        <a-entity id="seg-I" position="0 -0.04 0.02" class="interactive-key seg-key" data-char="I" rotation="0 0 0"><a-sphere radius="0.022" color="#6366f1" data-original-color="#6366f1" rotation="0 0 0"></a-sphere><a-text value="I\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 0" text="value: I"></a-text></a-entity>
+
+        <a-entity id="seg-J" position="-0.06 0.07 0.02" class="interactive-key seg-key" data-char="J" rotation="0 0 0"><a-sphere radius="0.022" color="#8b5cf6" data-original-color="#8b5cf6" rotation="0 0 0"></a-sphere><a-text value="J\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 0" text="value: J"></a-text></a-entity>
+        <a-entity id="seg-K" position="-0.06 0.01 0.02" class="interactive-key seg-key" data-char="K" rotation="0 0 0"><a-sphere radius="0.022" color="#a855f7" data-original-color="#a855f7" rotation="0 0 0"></a-sphere><a-text value="K\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 0" text="value: K"></a-text></a-entity>
+        <a-entity id="seg-L" position="-0.06 -0.05 0.02" class="interactive-key seg-key" data-char="L" rotation="0 0 0"><a-sphere radius="0.022" color="#ec4899" data-original-color="#ec4899" rotation="0 0 0"></a-sphere><a-text value="L\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 0" text="value: L"></a-text></a-entity>
+
+        <a-entity id="right-thumb-actuator" position="0.2 -0.03 0.03" rotation="0 0 0"><a-sphere radius="0.02" color="#f43f5e" data-original-color="#f43f5e" rotation="0 0 0"></a-sphere><a-text value="Thumb" align="center" color="#f43f5e" width="0.7" position="0 -0.03 0" rotation="0 0 0"></a-text></a-entity>
+      </a-entity>
+
+      <!-- 4. CAMERA RIG (Position Y = 0) WITH 3S GAZE CURSOR & VR CONTROLLERS -->
+      <a-entity id="rig" position="0 0 0">
+        <a-camera id="camera" look-controls="enabled: true" wasd-controls="enabled: false">
+          <a-entity id="gaze-cursor"
+                    position="0 0 -1"
+                    geometry="primitive: ring; radiusInner: 0.008; radiusOuter: 0.015"
+                    material="color: #a855f7; shader: flat"
+                    cursor="maxDistance: 30; fuse: true; fuseTimeout: 3000"
+                    raycaster="objects: .interactive-key, a-sphere, a-box, .clickable"
+                    animation__click="property: scale; from: 0.2 0.2 0.2; to: 1 1 1; startEvents: click; dur: 150; easing: easeInQuad"
+                    animation__fusing="property: scale; from: 1 1 1; to: 0.15 0.15 0.15; startEvents: fusing; dur: 3000; easing: easeInQuad">
+          </a-entity>
+        </a-camera>
+
+        <!-- Laser Pointer Controls for VR Gamepads -->
+        <a-entity laser-controls="hand: right" raycaster="objects: .interactive-key, a-sphere, a-box, .clickable; lineColor: #a855f7; lineOpacity: 0.8"></a-entity>
+        <a-entity laser-controls="hand: left" raycaster="objects: .interactive-key, a-sphere, a-box, .clickable; lineColor: #8b5cf6; lineOpacity: 0.8"></a-entity>
+      </a-entity>
+    </a-scene>
+  </div>
+
+  <script>
+    const C = window.APP_CONFIG || {
+      screen: { position: { x: 0, y: 1.9, z: -1.6 } },
+      qwerty: { position: { x: 0, y: 1.3, z: -1.45 } },
+      handRig: { rightDefaultPosition: { x: 0.75, y: 1.3, z: -1.2 } },
+      gaze: { timeoutMs: 3000 },
+      tracking: { touchThreshold: 0.045, touchCooldownMs: 600 },
+      audio: { frequencyHz: 587.33, durationSec: 0.12, volume: 0.15 }
+    };
+
+    let typedText = '';
+    let audioCtx = null;
+    let lastTouchTime = {};
+
+    let typingStartTime = null;
+    let wordCount = 0;
+    let currentWPM = 0;
+    let inactivityTimer = null;
+
+    let scrollOffset = 0;
+    const MAX_VISIBLE_LINES = 3;
+    const MAX_CHARS_PER_LINE = 28;
+
+    const canvasElement = document.getElementById('tf_canvas');
+    const canvasCtx = canvasElement.getContext('2d');
+
+    const rightSegmentKeys = [
+      { id: 'seg-A', char: 'A', landmark: 8 }, { id: 'seg-B', char: 'B', landmark: 7 }, { id: 'seg-C', char: 'C', landmark: 6 },
+      { id: 'seg-D', char: 'D', landmark: 12 }, { id: 'seg-E', char: 'E', landmark: 11 }, { id: 'seg-F', char: 'F', landmark: 10 },
+      { id: 'seg-G', char: 'G', landmark: 16 }, { id: 'seg-H', char: 'H', landmark: 15 }, { id: 'seg-I', char: 'I', landmark: 14 },
+      { id: 'seg-J', char: 'J', landmark: 20 }, { id: 'seg-K', char: 'K', landmark: 19 }, { id: 'seg-L', char: 'L', landmark: 18 }
+    ];
+
+    const qwertyRows = [
+      [
+        { char: 'CLEAR', label: 'CLEAR', width: 0.18, color: '#ef4444' },
+        { char: 'Q' }, { char: 'W' }, { char: 'E' }, { char: 'R' }, { char: 'T' },
+        { char: 'Y' }, { char: 'U' }, { char: 'I' }, { char: 'O' }, { char: 'P' },
+        { char: 'BACK', label: 'BACK', width: 0.18, color: '#f59e0b' }
+      ],
+      [
+        { char: 'A' }, { char: 'S' }, { char: 'D' }, { char: 'F' },
+        { char: 'G' }, { char: 'H' }, { char: 'J' }, { char: 'K' }, { char: 'L' }
+      ],
+      [
+        { char: 'Z' }, { char: 'X' }, { char: 'C' }, { char: 'V' },
+        { char: 'B' }, { char: 'N' }, { char: 'M' }
+      ],
+      [
+        { char: 'SPACE', label: 'SPACE BAR', width: 0.7, color: '#1e293b' }
+      ]
+    ];
+
+    function updateCanvasSize() {
+      canvasElement.width = window.innerWidth;
+      canvasElement.height = window.innerHeight;
+    }
+    window.addEventListener('resize', updateCanvasSize);
+    updateCanvasSize();
+
+    function playBeepSound() {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.12);
+      } catch (e) { console.warn(e); }
+    }
+
+    function buildQwertyKeyboard() {
+      const container = document.getElementById('qwerty-keys-container');
+      if (!container) return;
+      container.innerHTML = '';
+
+      qwertyRows.forEach((row, rowIndex) => {
+        const yPos = -rowIndex * 0.15;
+        let rowWidth = 0;
+        row.forEach(item => { rowWidth += (item.width || 0.12) + 0.02; });
+        const startX = -rowWidth / 2 + 0.07;
+
+        let currentX = startX;
+        row.forEach((item) => {
+          const char = item.char;
+          const label = item.label || char;
+          const width = item.width || 0.12;
+          const color = item.color || '#1e293b';
+
+          const keyEl = document.createElement('a-entity');
+          keyEl.setAttribute('id', `qwerty-key-${char}`);
+          keyEl.setAttribute('class', 'interactive-key qwerty-key');
+          keyEl.setAttribute('position', `${currentX + width / 2 - 0.06} ${yPos} 0`);
+          keyEl.setAttribute('data-char', char);
+
+          const box = document.createElement('a-box');
+          box.setAttribute('width', width);
+          box.setAttribute('height', '0.12');
+          box.setAttribute('depth', '0.03');
+          box.setAttribute('color', color);
+          box.setAttribute('data-original-color', color);
+          keyEl.appendChild(box);
+
+          const text = document.createElement('a-text');
+          text.setAttribute('value', label);
+          text.setAttribute('align', 'center');
+          text.setAttribute('color', '#f8fafc');
+          text.setAttribute('width', width > 0.3 ? '2.4' : '1.8');
+          text.setAttribute('position', '0 0 0.02');
+          keyEl.appendChild(text);
+
+          keyEl.addEventListener('click', (e) => {
+            const keyEntity = e.currentTarget.closest('.interactive-key') || e.currentTarget;
+            const targetChar = keyEntity.getAttribute('data-char');
+            if (targetChar === 'SPACE') typeChar(' ');
+            else if (targetChar === 'BACK') handleBackspace();
+            else if (targetChar === 'CLEAR') clearText();
+            else typeChar(targetChar);
+          });
+
+          container.appendChild(keyEl);
+          currentX += width + 0.02;
+        });
+      });
+    }
+
+    function highlightKey(keyChar) {
+      const charUpper = keyChar.toUpperCase();
+      let keyEl = document.getElementById(`qwerty-key-${charUpper}`);
+      if (!keyEl && charUpper === ' ') keyEl = document.getElementById('qwerty-key-SPACE');
+      if (!keyEl) keyEl = document.getElementById(`seg-${charUpper}`);
+
+      if (keyEl) {
+        const box = keyEl.querySelector('a-box') || keyEl.querySelector('a-sphere') || keyEl;
+        if (box) {
+          const origColor = box.getAttribute('data-original-color') || box.getAttribute('color') || '#1e293b';
+          box.setAttribute('color', '#a855f7');
+          box.setAttribute('scale', '1.15 1.15 1.15');
+          setTimeout(() => {
+            box.setAttribute('color', origColor);
+            box.setAttribute('scale', '1 1 1');
+          }, 300);
+        }
+      }
+    }
+
+    function updateWPM(char) {
+      if (inactivityTimer) clearTimeout(inactivityTimer);
+      inactivityTimer = setTimeout(() => { resetWPM(); }, 10000);
+      if (typingStartTime === null) typingStartTime = performance.now();
+      if (char === ' ') wordCount++;
+
+      const elapsedMinutes = (performance.now() - typingStartTime) / 60000;
+      currentWPM = elapsedMinutes > 0 ? Math.round(wordCount / elapsedMinutes) : 0;
+    }
+
+    function resetWPM() {
+      typingStartTime = null;
+      wordCount = 0;
+      currentWPM = 0;
+      updateDisplay();
+    }
+
+    function formatScreenLines(text, maxCharsPerLine = MAX_CHARS_PER_LINE) {
+      if (!text) return ["Output: "];
+      const lines = [];
+      let currentLine = "";
+      for (let char of text) {
+        if (currentLine.length >= maxCharsPerLine) {
+          lines.push(currentLine);
+          currentLine = char;
+        } else {
+          currentLine += char;
+        }
+      }
+      if (currentLine) lines.push(currentLine);
+      return lines;
+    }
+
+    window.scrollTextUp = function() {
+      if (scrollOffset > 0) {
+        scrollOffset--;
+        updateDisplay();
+      }
+    };
+
+    window.scrollTextDown = function() {
+      const lines = formatScreenLines(typedText);
+      if (scrollOffset < Math.max(0, lines.length - MAX_VISIBLE_LINES)) {
+        scrollOffset++;
+        updateDisplay();
+      }
+    };
+
+    function typeChar(char) {
+      typedText += char;
+      updateWPM(char);
+      const lines = formatScreenLines(typedText);
+      scrollOffset = Math.max(0, lines.length - MAX_VISIBLE_LINES);
+      updateDisplay();
+      playBeepSound();
+      highlightKey(char === ' ' ? 'SPACE' : char);
+    }
+
+    function handleBackspace() {
+      if (typedText.length > 0) {
+        typedText = typedText.slice(0, -1);
+        updateWPM('');
+        const lines = formatScreenLines(typedText);
+        scrollOffset = Math.max(0, lines.length - MAX_VISIBLE_LINES);
+        updateDisplay();
+        playBeepSound();
+        highlightKey('BACK');
+      }
+    }
+
+    window.clearText = function() {
+      typedText = '';
+      scrollOffset = 0;
+      resetWPM();
+      highlightKey('CLEAR');
+    };
+
+    function updateDisplay() {
+      document.getElementById('text-output').innerText = typedText;
+      document.getElementById('wpm-val').innerText = currentWPM;
+
+      const lines = formatScreenLines(typedText);
+      const visibleLines = lines.slice(scrollOffset, scrollOffset + MAX_VISIBLE_LINES);
+      const formattedVrText = "Output: " + visibleLines.join("\n");
+
+      const vrText = document.getElementById('vr-text-output');
+      if (vrText) vrText.setAttribute('value', formattedVrText);
+
+      const vrWpm = document.getElementById('vr-wpm-output');
+      if (vrWpm) vrWpm.setAttribute('value', 'WPM: ' + currentWPM);
+    }
+
+    /**
+     * Initializes TensorFlow Handpose Model via Handsfree.js
+     */
+    function initHandsfreeTensorFlow() {
+      if (typeof window.Handsfree === 'undefined') {
+        document.getElementById('status').innerText = "Handsfree CDN Loading... Gaze 3s & Mouse Ready.";
+        return;
+      }
+
+      const handsfree = new window.Handsfree({
+        handpose: {
+          enabled: true,
+          backend: 'webgl',
+          detectionConfidence: 0.75
+        }
+      });
+
+      handsfree.start();
+      document.getElementById('status').innerText = "TensorFlow Handpose Ready! Show Right Hand.";
+
+      // Listen for TensorFlow Handpose data events
+      document.addEventListener('handsfree-data', (event) => {
+        const data = event.detail;
+        if (!data || !data.handpose || !data.handpose.landmarks) return;
+
+        const rawLandmarks = data.handpose.landmarks;
+        if (rawLandmarks && rawLandmarks.length >= 21) {
+          // Normalize 3D points
+          const landmarks = rawLandmarks.map(pt => ({
+            x: pt[0] / window.innerWidth,
+            y: pt[1] / window.innerHeight,
+            z: (pt[2] || 0) / 100
+          }));
+
+          onTensorFlowHandposeResults(landmarks);
+        }
+      });
+    }
+
+    function onTensorFlowHandposeResults(landmarks) {
+      canvasCtx.save();
+      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+      const wrist = landmarks[0];
+      const thumbTip = landmarks[4];
+      const now = performance.now();
+
+      // Dynamically position 3D Right Hand Rig
+      const rightRig = document.getElementById('virtual-right-hand-rig');
+      if (rightRig) {
+        const rx = (wrist.x - 0.5) * -1.8;
+        const ry = (0.5 - wrist.y) * 1.5 + 1.3;
+        const rz = -1.2;
+        rightRig.setAttribute('position', `${rx} ${ry} ${rz}`);
+      }
+
+      // Dynamic Thumb Actuator
+      const rightThumbEl = document.getElementById('right-thumb-actuator');
+      if (rightThumbEl) {
+        rightThumbEl.setAttribute('position', `${(thumbTip.x - wrist.x) * -1.2} ${(wrist.y - thumbTip.y) * 1.2} 0.03`);
+      }
+
+      // Check Right Hand Finger Segment Touches (A-L)
+      rightSegmentKeys.forEach(key => {
+        const joint = landmarks[key.landmark];
+        if (joint) {
+          const segEl = document.getElementById(key.id);
+          if (segEl) {
+            segEl.setAttribute('position', `${(joint.x - wrist.x) * -1.2} ${(wrist.y - joint.y) * 1.2} 0.02`);
+          }
+          const dist = Math.sqrt(Math.pow(thumbTip.x - joint.x, 2) + Math.pow(thumbTip.y - joint.y, 2) + Math.pow(thumbTip.z - joint.z, 2));
+          if (dist < C.tracking.touchThreshold) {
+            if (!lastTouchTime[key.char] || (now - lastTouchTime[key.char] > C.tracking.touchCooldownMs)) {
+              lastTouchTime[key.char] = now;
+              typeChar(key.char);
+            }
+          }
+        }
+      });
+
+      canvasCtx.restore();
+    }
+
+    // Physical Keyboard Input Listener
+    window.addEventListener('keydown', (e) => {
+      const key = e.key.toUpperCase();
+      if (key >= 'A' && key <= 'Z' && key.length === 1) {
+        typeChar(key);
+      } else if (e.key === ' ') {
+        e.preventDefault();
+        typeChar(' ');
+      } else if (e.key === 'Backspace') {
+        e.preventDefault();
+        handleBackspace();
+      }
+    });
+
+    window.addEventListener('wheel', (e) => {
+      if (e.deltaY < 0) scrollTextUp();
+      else if (e.deltaY > 0) scrollTextDown();
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      buildQwertyKeyboard();
+      setTimeout(initHandsfreeTensorFlow, 1000);
+
+      rightSegmentKeys.forEach(key => {
+        const segEl = document.getElementById(key.id);
+        if (segEl) {
+          segEl.addEventListener('click', (e) => {
+            const keyEntity = e.currentTarget.closest('.interactive-key') || e.currentTarget;
+            const char = keyEntity.getAttribute('data-char');
+            if (char) typeChar(char);
+          });
+        }
+      });
+
+      const gazeCursor = document.getElementById('gaze-cursor');
+      if (gazeCursor) {
+        gazeCursor.addEventListener('click', function () {
+          gazeCursor.setAttribute('scale', '1 1 1');
+          const cursorComp = gazeCursor.components.cursor;
+          if (cursorComp) {
+            cursorComp.fusing = false;
+            setTimeout(() => {
+              if (cursorComp.intersectedEl) {
+                cursorComp.startFusing(cursorComp.intersectedEl);
+              }
+            }, 150);
+          }
+        });
+      }
+    });
+  </script>
+</body>
+</html>

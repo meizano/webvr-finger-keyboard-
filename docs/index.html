@@ -23,9 +23,8 @@
       border-radius: 12px;
       border: 1px solid rgba(255, 255, 255, 0.15);
       text-align: center;
-      backdrop-filter: blur(8px);
-      max-width: 780px;
-      width: 90%;
+      max-width: 840px;
+      width: 92%;
       box-shadow: 0 4px 20px rgba(0,0,0,0.5);
     }
     h1 { margin: 0 0 8px 0; font-size: 1.4rem; color: #38bdf8; }
@@ -56,27 +55,32 @@
       background: linear-gradient(135deg, #059669, #047857);
       box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
     }
+    .btn-purple {
+      background: linear-gradient(135deg, #7c3aed, #5b21b6);
+      box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+    }
     .btn-alt {
-      background: linear-gradient(135deg, #8b5cf6, #6d28d9);
-      box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+      background: linear-gradient(135deg, #475569, #334155);
+      box-shadow: 0 4px 12px rgba(71, 85, 105, 0.3);
     }
   </style>
 </head>
 <body>
   <div class="ui-overlay">
     <h1>Dual-Hand Finger Segment Typing VR/MR</h1>
-    <p>Type using right-hand segments (A-L) and left-hand segments (M-X). Features MediaPipe dual-hand detection, AR.js Webcam Passthrough, 3D Scrollbar Screen & 3s Gaze Control.</p>
+    <p>Type using right-hand segments (A-L) and left-hand segments (M-X). Supports MediaPipe, TensorFlow Handpose, AR.js Passthrough & 3s Gaze Control.</p>
     <div class="btn-group">
+      <a href="cardboard-v3.html" class="btn btn-purple">Cardboard V3 (TensorFlow Handpose)</a>
       <a href="cardboard-v2.html" class="btn btn-green">Cardboard V2 (Wireframe Buttons)</a>
       <a href="cardboard-v1.html" class="btn">Cardboard V1 (Classic)</a>
       <a href="webxr.html" class="btn">Native WebXR Mode</a>
-      <a href="mediapipe-test.html" class="btn btn-alt">Test MediaPipe Skeleton</a>
+      <a href="mediapipe-test.html" class="btn btn-alt">Test MediaPipe</a>
     </div>
   </div>
 
   <a-scene background="color: #090d16">
     <a-assets>
-      <mixin id="card-panel" geometry="primitive: plane; width: 1.9; height: 1.4" material="shader: flat; color: #1e293b; transparent: true; opacity: 0.9"></mixin>
+      <mixin id="card-panel" geometry="primitive: plane; width: 1.8; height: 1.4" material="shader: flat; color: #1e293b; transparent: true; opacity: 0.9"></mixin>
     </a-assets>
 
     <!-- Lighting -->
@@ -89,43 +93,43 @@
     <!-- 3D Title -->
     <a-entity position="0 2.8 -3">
       <a-text value="DUAL-HAND FINGER TYPING VR/MR" align="center" color="#38bdf8" width="6" font="dejavu"></a-text>
-      <a-text value="Right Hand (A-L) | Left Hand (M-X)" align="center" color="#94a3b8" width="4" position="0 -0.4 0" font="dejavu"></a-text>
+      <a-text value="Select Mode Below (Gaze 3s / Click)" align="center" color="#94a3b8" width="4" position="0 -0.4 0" font="dejavu"></a-text>
     </a-entity>
 
-    <!-- Portal 1: Cardboard V2 Mode (Wireframe Alphabet Buttons) -->
-    <a-entity position="-2.4 1.5 -2.5" rotation="0 25 0">
+    <!-- Portal 1: Cardboard V3 (TensorFlow Handpose) -->
+    <a-entity position="-3.0 1.5 -2.5" rotation="0 30 0">
+      <a-entity mixin="card-panel" class="clickable" onclick="window.location.href='cardboard-v3.html'"></a-entity>
+      <a-box position="0 0 -0.02" width="1.85" height="1.45" depth="0.02" color="#8b5cf6" opacity="0.3"></a-box>
+      <a-text value="Cardboard V3\n(TensorFlow Handpose)" align="center" color="#ffffff" width="3.0" position="0 0.3 0.05" font="dejavu"></a-text>
+      <a-text value="Powered by Handsfree.js &\nTensorFlow Handpose model." align="center" color="#cbd5e1" width="2.6" position="0 -0.2 0.05" font="dejavu" scale="0.8 0.8 0.8"></a-text>
+      <a-plane width="1.8" height="1.4" position="0 0 0.03" material="opacity: 0" class="clickable" onclick="window.location.href='cardboard-v3.html'"></a-plane>
+    </a-entity>
+
+    <!-- Portal 2: Cardboard V2 Mode (Wireframe Alphabet Buttons) -->
+    <a-entity position="-1.0 1.5 -2.5" rotation="0 15 0">
       <a-entity mixin="card-panel" class="clickable" onclick="window.location.href='cardboard-v2.html'"></a-entity>
-      <a-box position="0 0 -0.02" width="1.95" height="1.45" depth="0.02" color="#10b981" opacity="0.3"></a-box>
-      <a-text value="Cardboard V2\n(Wireframe Buttons)" align="center" color="#ffffff" width="3.2" position="0 0.3 0.05" font="dejavu"></a-text>
-      <a-text value="Alphabet buttons attached\ndirectly on MediaPipe wireframe." align="center" color="#cbd5e1" width="2.8" position="0 -0.2 0.05" font="dejavu" scale="0.8 0.8 0.8"></a-text>
-      <a-plane width="1.9" height="1.4" position="0 0 0.03" material="opacity: 0" class="clickable" onclick="window.location.href='cardboard-v2.html'"></a-plane>
+      <a-box position="0 0 -0.02" width="1.85" height="1.45" depth="0.02" color="#10b981" opacity="0.3"></a-box>
+      <a-text value="Cardboard V2\n(Wireframe Buttons)" align="center" color="#ffffff" width="3.0" position="0 0.3 0.05" font="dejavu"></a-text>
+      <a-text value="Alphabet buttons attached\ndirectly on MediaPipe wireframe." align="center" color="#cbd5e1" width="2.6" position="0 -0.2 0.05" font="dejavu" scale="0.8 0.8 0.8"></a-text>
+      <a-plane width="1.8" height="1.4" position="0 0 0.03" material="opacity: 0" class="clickable" onclick="window.location.href='cardboard-v2.html'"></a-plane>
     </a-entity>
 
-    <!-- Portal 2: Cardboard V1 Mode -->
-    <a-entity position="-0.8 1.5 -2.5" rotation="0 10 0">
+    <!-- Portal 3: Cardboard V1 Mode -->
+    <a-entity position="1.0 1.5 -2.5" rotation="0 -15 0">
       <a-entity mixin="card-panel" class="clickable" onclick="window.location.href='cardboard-v1.html'"></a-entity>
-      <a-box position="0 0 -0.02" width="1.95" height="1.45" depth="0.02" color="#0ea5e9" opacity="0.3"></a-box>
-      <a-text value="Cardboard V1\n(Classic VR Rigs)" align="center" color="#ffffff" width="3.2" position="0 0.3 0.05" font="dejavu"></a-text>
-      <a-text value="Original dual virtual hand rigs\nwith 3D QWERTY & scrollbar." align="center" color="#cbd5e1" width="2.8" position="0 -0.2 0.05" font="dejavu" scale="0.8 0.8 0.8"></a-text>
-      <a-plane width="1.9" height="1.4" position="0 0 0.03" material="opacity: 0" class="clickable" onclick="window.location.href='cardboard-v1.html'"></a-plane>
+      <a-box position="0 0 -0.02" width="1.85" height="1.45" depth="0.02" color="#0ea5e9" opacity="0.3"></a-box>
+      <a-text value="Cardboard V1\n(Classic VR Rigs)" align="center" color="#ffffff" width="3.0" position="0 0.3 0.05" font="dejavu"></a-text>
+      <a-text value="Original dual virtual hand rigs\nwith 3D QWERTY & scrollbar." align="center" color="#cbd5e1" width="2.6" position="0 -0.2 0.05" font="dejavu" scale="0.8 0.8 0.8"></a-text>
+      <a-plane width="1.8" height="1.4" position="0 0 0.03" material="opacity: 0" class="clickable" onclick="window.location.href='cardboard-v1.html'"></a-plane>
     </a-entity>
 
-    <!-- Portal 3: Native WebXR Mode -->
-    <a-entity position="0.8 1.5 -2.5" rotation="0 -10 0">
+    <!-- Portal 4: Native WebXR Mode -->
+    <a-entity position="3.0 1.5 -2.5" rotation="0 -30 0">
       <a-entity mixin="card-panel" class="clickable" onclick="window.location.href='webxr.html'"></a-entity>
-      <a-box position="0 0 -0.02" width="1.95" height="1.45" depth="0.02" color="#6366f1" opacity="0.3"></a-box>
-      <a-text value="Native WebXR Mode\n(Meta Quest / Headset)" align="center" color="#ffffff" width="3.2" position="0 0.3 0.05" font="dejavu"></a-text>
-      <a-text value="Uses WebXR Hand API,\nPassthrough MR & QWERTY." align="center" color="#cbd5e1" width="2.8" position="0 -0.2 0.05" font="dejavu" scale="0.8 0.8 0.8"></a-text>
-      <a-plane width="1.9" height="1.4" position="0 0 0.03" material="opacity: 0" class="clickable" onclick="window.location.href='webxr.html'"></a-plane>
-    </a-entity>
-
-    <!-- Portal 4: MediaPipe Skeleton Test Page -->
-    <a-entity position="2.4 1.5 -2.5" rotation="0 -25 0">
-      <a-entity mixin="card-panel" class="clickable" onclick="window.location.href='mediapipe-test.html'"></a-entity>
-      <a-box position="0 0 -0.02" width="1.95" height="1.45" depth="0.02" color="#8b5cf6" opacity="0.3"></a-box>
-      <a-text value="MediaPipe Test Page\n(Skeleton Detection)" align="center" color="#ffffff" width="3.2" position="0 0.3 0.05" font="dejavu"></a-text>
-      <a-text value="Test dual-hand tracking,\n21 landmark joints & skeleton overlay." align="center" color="#cbd5e1" width="2.8" position="0 -0.2 0.05" font="dejavu" scale="0.8 0.8 0.8"></a-text>
-      <a-plane width="1.9" height="1.4" position="0 0 0.03" material="opacity: 0" class="clickable" onclick="window.location.href='mediapipe-test.html'"></a-plane>
+      <a-box position="0 0 -0.02" width="1.85" height="1.45" depth="0.02" color="#6366f1" opacity="0.3"></a-box>
+      <a-text value="Native WebXR Mode\n(Meta Quest / Headset)" align="center" color="#ffffff" width="3.0" position="0 0.3 0.05" font="dejavu"></a-text>
+      <a-text value="Uses WebXR Hand API,\nPassthrough MR & QWERTY." align="center" color="#cbd5e1" width="2.6" position="0 -0.2 0.05" font="dejavu" scale="0.8 0.8 0.8"></a-text>
+      <a-plane width="1.8" height="1.4" position="0 0 0.03" material="opacity: 0" class="clickable" onclick="window.location.href='webxr.html'"></a-plane>
     </a-entity>
 
     <!-- Camera Rig with 3-Second Gaze Cursor -->

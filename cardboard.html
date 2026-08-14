@@ -65,7 +65,7 @@
       border: 1px solid #38bdf8;
       font-size: 0.95rem;
       letter-spacing: 0.5px;
-      min-width: 340px;
+      min-width: 360px;
       text-align: center;
       backdrop-filter: blur(8px);
       box-shadow: 0 4px 15px rgba(56, 189, 248, 0.25);
@@ -73,7 +73,7 @@
     .wpm-badge {
       color: #10b981;
       font-weight: bold;
-      margin-left: 12px;
+      margin-left: 10px;
     }
     /* Fullscreen AR.js Style Live Camera Background */
     #passthrough-video {
@@ -103,12 +103,11 @@
 
   <!-- 2D Bottom Text Output & WPM Overlay -->
   <div id="typed-display">
-    Output: <span id="text-output" style="color: #38bdf8; font-weight: bold;"></span>
-    <span class="wpm-badge">WPM: <span id="wpm-val">0</span></span>
+    Output: <span id="text-output" style="color: #38bdf8; font-weight: bold;"></span> | WPM: <span id="wpm-val" style="color: #10b981; font-weight: bold;">0</span>
   </div>
 
-  <!-- 3D WebVR Scene -->
-  <a-scene background="transparent: true" renderer="alpha: true">
+  <!-- 3D WebVR Scene (keyboard-shortcuts="enterVR: false" disables default 'F' fullscreen shortcut) -->
+  <a-scene background="transparent: true" renderer="alpha: true" keyboard-shortcuts="enterVR: false">
     <a-assets>
       <mixin id="key-btn" geometry="primitive: box; width: 0.12; height: 0.12; depth: 0.03" material="shader: flat; color: #1e293b"></mixin>
       <mixin id="seg-btn" geometry="primitive: sphere; radius: 0.022" material="shader: flat; color: #38bdf8; opacity: 0.9"></mixin>
@@ -127,17 +126,18 @@
       <a-box width="1.82" height="0.47" depth="0.01" color="#38bdf8" opacity="0.3" position="0 0 -0.06"></a-box>
       
       <!-- Output Text Display (Font size reduced by 2 points -> width 2.8) -->
-      <a-text id="vr-text-output" value="Output: " align="center" color="#38bdf8" width="2.8" position="0 0.08 0.02" font="dejavu"></a-text>
-      <!-- 3D WPM Badge -->
-      <a-text id="vr-wpm-output" value="WPM: 0" align="center" color="#10b981" width="2.2" position="0 -0.1 0.02" font="dejavu"></a-text>
+      <a-text id="vr-text-output" value="Output: " align="center" color="#38bdf8" width="2.8" position="0 0 0.02" font="dejavu"></a-text>
     </a-entity>
 
     <!-- ================================================================= -->
     <!-- 2. SYNCHRONIZED 3D QWERTY KEYBOARD (POSITIONED AT Y=3.45, Z=-1.45)-->
     <!-- Includes CLEAR (next to Q), BACK (next to P), and SPACE BAR below -->
+    <!-- WPM Text (vr-wpm-output) placed UNDERNEATH the QWERTY keyboard   -->
     <!-- ================================================================= -->
     <a-entity id="qwerty-keyboard" position="0 3.45 -1.45" rotation="-15 0 0">
       <a-entity id="qwerty-keys-container"></a-entity>
+      <!-- 3D WPM Badge placed UNDERNEATH the QWERTY keyboard -->
+      <a-text id="vr-wpm-output" value="WPM: 0" align="center" color="#10b981" width="2.4" position="0 -0.65 0.02" font="dejavu"></a-text>
     </a-entity>
 
     <!-- ================================================================= -->
@@ -238,6 +238,15 @@
   <!-- APPLICATION JAVASCRIPT LOGIC & MODULAR FUNCTIONS                 -->
   <!-- ================================================================= -->
   <script>
+    // Intercept and completely block 'F' / 'f' key from toggling Fullscreen in browser or A-Frame
+    window.addEventListener('keydown', function (e) {
+      if (e.key.toLowerCase() === 'f' || e.code === 'KeyF' || e.keyCode === 70) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+      }
+    }, true);
+
     // Register Custom Camera Component for Arrow Keys & PageUp/PageDown
     AFRAME.registerComponent('camera-arrow-controls', {
       init: function () {
@@ -245,10 +254,10 @@
         this.keysPressed = {};
 
         window.addEventListener('keydown', (e) => {
-          // Disable 'f' / 'F' fullscreen shortcut
-          if (e.key.toLowerCase() === 'f') {
+          if (e.key.toLowerCase() === 'f' || e.code === 'KeyF' || e.keyCode === 70) {
             e.preventDefault();
             e.stopPropagation();
+            e.stopImmediatePropagation();
           }
           this.keysPressed[e.key] = true;
         }, true);
@@ -312,7 +321,7 @@
       { id: 'seg-L', char: 'L', landmark: 18 }  // Little Base
     ];
 
-    // QWERTY Layout Rows (Includes CLEAR, BACK, and SPACE BAR like standard keyboard)
+    // QWERTY Layout Rows (SPACE BAR default color #1e293b matches all QWERTY keys)
     const qwertyRows = [
       [
         { char: 'CLEAR', label: 'CLEAR', width: 0.18, color: '#ef4444' },
@@ -329,7 +338,7 @@
         { char: 'B' }, { char: 'N' }, { char: 'M' }
       ],
       [
-        { char: 'SPACE', label: 'SPACE BAR', width: 0.7, color: '#0ea5e9' }
+        { char: 'SPACE', label: 'SPACE BAR', width: 0.7, color: '#1e293b' }
       ]
     ];
 
@@ -362,7 +371,6 @@
 
       qwertyRows.forEach((row, rowIndex) => {
         const yPos = -rowIndex * 0.15;
-        // Calculate total row width
         let rowWidth = 0;
         row.forEach(item => {
           rowWidth += (item.width || 0.12) + 0.02;
@@ -650,22 +658,6 @@
       }
       requestAnimationFrame(predictWebcam);
     }
-
-    // Physical Keyboard Fallback
-    window.addEventListener('keydown', (e) => {
-      if (e.key.toLowerCase() === 'f') {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-      const key = e.key.toUpperCase();
-      if (key >= 'A' && key <= 'Z' && key.length === 1) {
-        typeChar(key);
-      } else if (e.key === ' ') {
-        typeChar(' ');
-      } else if (e.key === 'Backspace') {
-        handleBackspace();
-      }
-    }, true);
 
     // Page Load Setup
     window.addEventListener('DOMContentLoaded', () => {

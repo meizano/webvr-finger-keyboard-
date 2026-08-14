@@ -55,7 +55,7 @@
       border: 1px solid #6366f1;
       font-size: 0.95rem;
       letter-spacing: 0.5px;
-      min-width: 340px;
+      min-width: 360px;
       text-align: center;
       backdrop-filter: blur(8px);
       box-shadow: 0 4px 15px rgba(99, 102, 241, 0.25);
@@ -63,7 +63,7 @@
     .wpm-badge {
       color: #10b981;
       font-weight: bold;
-      margin-left: 12px;
+      margin-left: 10px;
     }
   </style>
 </head>
@@ -77,11 +77,11 @@
 
   <!-- 2D Bottom Text Output & WPM Overlay -->
   <div id="typed-display">
-    Output: <span id="text-output" style="color: #818cf8; font-weight: bold;"></span>
-    <span class="wpm-badge">WPM: <span id="wpm-val">0</span></span>
+    Output: <span id="text-output" style="color: #818cf8; font-weight: bold;"></span> | WPM: <span id="wpm-val" style="color: #10b981; font-weight: bold;">0</span>
   </div>
 
-  <a-scene webxr="optionalFeatures: hand-tracking, hit-test, local-floor, passthrough" renderer="alpha: true" background="transparent: true">
+  <!-- 3D WebVR Scene (keyboard-shortcuts="enterVR: false" disables default 'F' fullscreen shortcut) -->
+  <a-scene webxr="optionalFeatures: hand-tracking, hit-test, local-floor, passthrough" renderer="alpha: true" background="transparent: true" keyboard-shortcuts="enterVR: false">
     <a-assets>
       <mixin id="key-btn" geometry="primitive: box; width: 0.12; height: 0.12; depth: 0.03" material="shader: flat; color: #1e293b"></mixin>
     </a-assets>
@@ -96,14 +96,14 @@
       <a-box width="1.82" height="0.47" depth="0.01" color="#818cf8" opacity="0.3" position="0 0 -0.06"></a-box>
       
       <!-- Output Text Display (Font size reduced by 2 points -> width 2.8) -->
-      <a-text id="vr-text-output" value="Output: " align="center" color="#818cf8" width="2.8" position="0 0.08 0.02" font="dejavu"></a-text>
-      <!-- 3D WPM Badge -->
-      <a-text id="vr-wpm-output" value="WPM: 0" align="center" color="#10b981" width="2.2" position="0 -0.1 0.02" font="dejavu"></a-text>
+      <a-text id="vr-text-output" value="Output: " align="center" color="#818cf8" width="2.8" position="0 0 0.02" font="dejavu"></a-text>
     </a-entity>
 
     <!-- 2. Synchronized 3D QWERTY Keyboard (Y=3.45, Z=-1.45) -->
     <a-entity id="qwerty-keyboard" position="0 3.45 -1.45" rotation="-15 0 0">
       <a-entity id="qwerty-keys-container"></a-entity>
+      <!-- 3D WPM Badge placed UNDERNEATH the QWERTY keyboard -->
+      <a-text id="vr-wpm-output" value="WPM: 0" align="center" color="#10b981" width="2.4" position="0 -0.65 0.02" font="dejavu"></a-text>
     </a-entity>
 
     <!-- 3. Floating Virtual Right Hand Rig (1.1 4 -1.6) -->
@@ -194,15 +194,25 @@
   </a-scene>
 
   <script>
+    // Intercept and completely block 'F' / 'f' key from toggling Fullscreen
+    window.addEventListener('keydown', function (e) {
+      if (e.key.toLowerCase() === 'f' || e.code === 'KeyF' || e.keyCode === 70) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+      }
+    }, true);
+
     AFRAME.registerComponent('camera-arrow-controls', {
       init: function () {
         this.speed = 0.08;
         this.keysPressed = {};
 
         window.addEventListener('keydown', (e) => {
-          if (e.key.toLowerCase() === 'f') {
+          if (e.key.toLowerCase() === 'f' || e.code === 'KeyF' || e.keyCode === 70) {
             e.preventDefault();
             e.stopPropagation();
+            e.stopImmediatePropagation();
           }
           this.keysPressed[e.key] = true;
         }, true);
@@ -267,7 +277,7 @@
         { char: 'B' }, { char: 'N' }, { char: 'M' }
       ],
       [
-        { char: 'SPACE', label: 'SPACE BAR', width: 0.7, color: '#6366f1' }
+        { char: 'SPACE', label: 'SPACE BAR', width: 0.7, color: '#1e293b' }
       ]
     ];
 
@@ -433,17 +443,6 @@
         scene.setAttribute('background', 'color: #090d16');
       }
     }
-
-    window.addEventListener('keydown', (e) => {
-      if (e.key.toLowerCase() === 'f') {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-      const key = e.key.toUpperCase();
-      if (key >= 'A' && key <= 'Z' && key.length === 1) typeChar(key);
-      else if (e.key === ' ') typeChar(' ');
-      else if (e.key === 'Backspace') handleBackspace();
-    }, true);
 
     window.addEventListener('DOMContentLoaded', () => {
       buildQwertyKeyboard();

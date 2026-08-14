@@ -42,6 +42,7 @@
       transition: background 0.2s;
     }
     button:hover { background: #4f46e5; }
+    /* Bottom Display Overlay (Font size reduced by 2 points to 0.95rem) */
     #typed-display {
       position: fixed;
       bottom: 20px;
@@ -49,15 +50,20 @@
       transform: translateX(-50%);
       z-index: 1000;
       background: rgba(15, 23, 42, 0.92);
-      padding: 10px 24px;
+      padding: 8px 20px;
       border-radius: 10px;
       border: 1px solid #6366f1;
-      font-size: 1.15rem;
-      letter-spacing: 1px;
-      min-width: 320px;
+      font-size: 0.95rem;
+      letter-spacing: 0.5px;
+      min-width: 340px;
       text-align: center;
       backdrop-filter: blur(8px);
       box-shadow: 0 4px 15px rgba(99, 102, 241, 0.25);
+    }
+    .wpm-badge {
+      color: #10b981;
+      font-weight: bold;
+      margin-left: 12px;
     }
   </style>
 </head>
@@ -69,7 +75,11 @@
     <button onclick="window.location.href='index.html'">Back to Menu</button>
   </div>
 
-  <div id="typed-display">Output: <span id="text-output" style="color: #818cf8; font-weight: bold;"></span></div>
+  <!-- 2D Bottom Text Output & WPM Overlay -->
+  <div id="typed-display">
+    Output: <span id="text-output" style="color: #818cf8; font-weight: bold;"></span>
+    <span class="wpm-badge">WPM: <span id="wpm-val">0</span></span>
+  </div>
 
   <a-scene webxr="optionalFeatures: hand-tracking, hit-test, local-floor, passthrough" renderer="alpha: true" background="transparent: true">
     <a-assets>
@@ -80,110 +90,93 @@
     <a-entity light="type: ambient; color: #ffffff; intensity: 0.9"></a-entity>
     <a-entity light="type: directional; color: #818cf8; intensity: 0.6" position="1 4 2"></a-entity>
 
-    <!-- 1. Floating Screen Display (Positioned at Y=4.0, Z=-1.6) -->
+    <!-- 1. Floating Screen Display (Y=4.0, Z=-1.6) -->
     <a-entity id="floating-screen" position="0 4 -1.6">
-      <a-plane width="1.8" height="0.5" color="#0f172a" opacity="0.88" material="shader: flat" position="0 0 -0.05"></a-plane>
-      <a-box width="1.82" height="0.52" depth="0.01" color="#818cf8" opacity="0.3" position="0 0 -0.06"></a-box>
-      <a-text id="vr-text-output" value="Output: " align="center" color="#818cf8" width="3.4" position="0 0.12 0.02" font="dejavu"></a-text>
-
-      <!-- Action Buttons pushed forward to Z=0.08 to prevent Z-fighting -->
-      <a-entity position="-0.45 -0.12 0.08" class="interactive-key" data-char="SPACE" onclick="typeChar(' ')">
-        <a-box width="0.28" height="0.1" depth="0.04" color="#6366f1" class="interactive-key"></a-box>
-        <a-text value="SPACE" align="center" color="white" width="1.2" position="0 0 0.03"></a-text>
-      </a-entity>
-      <a-entity position="0 -0.12 0.08" class="interactive-key" data-char="BACKSPACE" onclick="handleBackspace()">
-        <a-box width="0.28" height="0.1" depth="0.04" color="#f59e0b" class="interactive-key"></a-box>
-        <a-text value="BACK" align="center" color="white" width="1.2" position="0 0 0.03"></a-text>
-      </a-entity>
-      <a-entity position="0.45 -0.12 0.08" class="interactive-key" data-char="CLEAR" onclick="clearText()">
-        <a-box width="0.28" height="0.1" depth="0.04" color="#ef4444" class="interactive-key"></a-box>
-        <a-text value="CLEAR" align="center" color="white" width="1.2" position="0 0 0.03"></a-text>
-      </a-entity>
+      <a-plane width="1.8" height="0.45" color="#0f172a" opacity="0.88" material="shader: flat" position="0 0 -0.05"></a-plane>
+      <a-box width="1.82" height="0.47" depth="0.01" color="#818cf8" opacity="0.3" position="0 0 -0.06"></a-box>
+      
+      <!-- Output Text Display (Font size reduced by 2 points -> width 2.8) -->
+      <a-text id="vr-text-output" value="Output: " align="center" color="#818cf8" width="2.8" position="0 0.08 0.02" font="dejavu"></a-text>
+      <!-- 3D WPM Badge -->
+      <a-text id="vr-wpm-output" value="WPM: 0" align="center" color="#10b981" width="2.2" position="0 -0.1 0.02" font="dejavu"></a-text>
     </a-entity>
 
-    <!-- 2. Synchronized 3D QWERTY Keyboard (Positioned at Y=3.45, Z=-1.45) -->
+    <!-- 2. Synchronized 3D QWERTY Keyboard (Y=3.45, Z=-1.45) -->
     <a-entity id="qwerty-keyboard" position="0 3.45 -1.45" rotation="-15 0 0">
       <a-entity id="qwerty-keys-container"></a-entity>
     </a-entity>
 
-    <!-- 3. Floating Virtual Right Hand Rig (Exact User Provided HTML Positioned at 1.1 4 -1.6) -->
+    <!-- 3. Floating Virtual Right Hand Rig (1.1 4 -1.6) -->
     <a-entity id="virtual-hand-rig" position="1.1 4 -1.6" rotation="0 0 90">
-      <!-- Visual Hand Palm Reference Line -->
       <a-entity id="hand-mesh-reference">
-        <!-- Palm Backplate -->
-        <a-box position="0.02 0.02 -0.01" width="0.18" height="0.18" depth="0.015" color="#1e293b" opacity="0.65" material="" geometry=""></a-box>
-        <!-- Wrist Cylinder -->
-        <a-cylinder position="-0.08 -0.08 -0.01" rotation="0 0 -45" radius="0.012" height="0.14" color="#334155" opacity="0.65" material="" geometry=""></a-cylinder>
+        <a-box position="0.02 0.02 -0.01" width="0.18" height="0.18" depth="0.015" color="#1e293b" opacity="0.65" data-original-color="#1e293b"></a-box>
+        <a-cylinder position="-0.08 -0.08 -0.01" rotation="0 0 -45" radius="0.012" height="0.14" color="#334155" opacity="0.65"></a-cylinder>
         <a-text value="RIGHT HAND (A-L)" align="center" color="#94a3b8" width="1.1" position="-0.12 0.02 0.02" rotation="0 0 -90" text="value: R. HAND"></a-text>
       </a-entity>
 
-      <!-- 12 FINGER SEGMENT BUTTONS (A-L) MAPPED ACROSS 4 FINGERS -->
-      <!-- TOP ROW: Index Finger -> A (Tip), B (Mid), C (Base) -->
-      <a-entity id="seg-A" position="0.12 0.1 0.02" class="interactive-key seg-key" data-char="A" rotation="">
-        <a-sphere radius="0.022" color="#ef4444" material="" geometry="" class="interactive-key"></a-sphere>
+      <!-- 12 FINGER SEGMENT BUTTONS (A-L) -->
+      <a-entity id="seg-A" position="0.12 0.1 0.02" class="interactive-key seg-key" data-char="A">
+        <a-sphere radius="0.022" color="#ef4444" data-original-color="#ef4444" class="interactive-key"></a-sphere>
         <a-text value="A\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: A"></a-text>
       </a-entity>
-      <a-entity id="seg-B" position="0.12 0.03 0.02" class="interactive-key seg-key" data-char="B" rotation="">
-        <a-sphere radius="0.022" color="#f97316" material="" geometry="" class="interactive-key"></a-sphere>
+      <a-entity id="seg-B" position="0.12 0.03 0.02" class="interactive-key seg-key" data-char="B">
+        <a-sphere radius="0.022" color="#f97316" data-original-color="#f97316" class="interactive-key"></a-sphere>
         <a-text value="B\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: B"></a-text>
       </a-entity>
-      <a-entity id="seg-C" position="0.12 -0.04 0.02" class="interactive-key seg-key" data-char="C" rotation="">
-        <a-sphere radius="0.022" color="#facc15" material="" geometry="" class="interactive-key"></a-sphere>
+      <a-entity id="seg-C" position="0.12 -0.04 0.02" class="interactive-key seg-key" data-char="C">
+        <a-sphere radius="0.022" color="#facc15" data-original-color="#facc15" class="interactive-key"></a-sphere>
         <a-text value="C\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: C"></a-text>
       </a-entity>
 
-      <!-- SECOND ROW: Middle Finger -> D (Tip), E (Mid), F (Base) -->
-      <a-entity id="seg-D" position="0.06 0.12 0.02" class="interactive-key seg-key" data-char="D" rotation="">
-        <a-sphere radius="0.022" color="#22c55e" material="" geometry="" class="interactive-key"></a-sphere>
+      <a-entity id="seg-D" position="0.06 0.12 0.02" class="interactive-key seg-key" data-char="D">
+        <a-sphere radius="0.022" color="#22c55e" data-original-color="#22c55e" class="interactive-key"></a-sphere>
         <a-text value="D\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: D"></a-text>
       </a-entity>
-      <a-entity id="seg-E" position="0.06 0.05 0.02" class="interactive-key seg-key" data-char="E" rotation="">
-        <a-sphere radius="0.022" color="#10b981" material="" geometry="" class="interactive-key"></a-sphere>
+      <a-entity id="seg-E" position="0.06 0.05 0.02" class="interactive-key seg-key" data-char="E">
+        <a-sphere radius="0.022" color="#10b981" data-original-color="#10b981" class="interactive-key"></a-sphere>
         <a-text value="E\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: E"></a-text>
       </a-entity>
-      <a-entity id="seg-F" position="0.06 -0.02 0.02" class="interactive-key seg-key" data-char="F" rotation="">
-        <a-sphere radius="0.022" color="#14b8a6" material="" geometry="" position="" class="interactive-key"></a-sphere>
+      <a-entity id="seg-F" position="0.06 -0.02 0.02" class="interactive-key seg-key" data-char="F">
+        <a-sphere radius="0.022" color="#14b8a6" data-original-color="#14b8a6" class="interactive-key"></a-sphere>
         <a-text value="F\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: F"></a-text>
       </a-entity>
 
-      <!-- THIRD ROW: Ring Finger -> G (Tip), H (Mid), I (Base) -->
-      <a-entity id="seg-G" position="0 0.1 0.02" class="interactive-key seg-key" data-char="G" rotation="">
-        <a-sphere radius="0.022" color="#06b6d4" material="" geometry="" class="interactive-key"></a-sphere>
+      <a-entity id="seg-G" position="0 0.1 0.02" class="interactive-key seg-key" data-char="G">
+        <a-sphere radius="0.022" color="#06b6d4" data-original-color="#06b6d4" class="interactive-key"></a-sphere>
         <a-text value="G\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: G"></a-text>
       </a-entity>
-      <a-entity id="seg-H" position="0 0.03 0.02" class="interactive-key seg-key" data-char="H" rotation="">
-        <a-sphere radius="0.022" color="#3b82f6" material="" geometry="" class="interactive-key"></a-sphere>
+      <a-entity id="seg-H" position="0 0.03 0.02" class="interactive-key seg-key" data-char="H">
+        <a-sphere radius="0.022" color="#3b82f6" data-original-color="#3b82f6" class="interactive-key"></a-sphere>
         <a-text value="H\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: H"></a-text>
       </a-entity>
-      <a-entity id="seg-I" position="0 -0.04 0.02" class="interactive-key seg-key" data-char="I" rotation="">
-        <a-sphere radius="0.022" color="#6366f1" material="" geometry="" class="interactive-key"></a-sphere>
+      <a-entity id="seg-I" position="0 -0.04 0.02" class="interactive-key seg-key" data-char="I">
+        <a-sphere radius="0.022" color="#6366f1" data-original-color="#6366f1" class="interactive-key"></a-sphere>
         <a-text value="I\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: I"></a-text>
       </a-entity>
 
-      <!-- BOTTOM ROW: Little Finger -> J (Tip), K (Mid), L (Base) -->
-      <a-entity id="seg-J" position="-0.06 0.07 0.02" class="interactive-key seg-key" data-char="J" rotation="">
-        <a-sphere radius="0.022" color="#8b5cf6" material="" geometry="" class="interactive-key"></a-sphere>
+      <a-entity id="seg-J" position="-0.06 0.07 0.02" class="interactive-key seg-key" data-char="J">
+        <a-sphere radius="0.022" color="#8b5cf6" data-original-color="#8b5cf6" class="interactive-key"></a-sphere>
         <a-text value="J\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: J"></a-text>
       </a-entity>
-      <a-entity id="seg-K" position="-0.06 0.01 0.02" class="interactive-key seg-key" data-char="K" rotation="">
-        <a-sphere radius="0.022" color="#a855f7" material="" geometry="" class="interactive-key"></a-sphere>
+      <a-entity id="seg-K" position="-0.06 0.01 0.02" class="interactive-key seg-key" data-char="K">
+        <a-sphere radius="0.022" color="#a855f7" data-original-color="#a855f7" class="interactive-key"></a-sphere>
         <a-text value="K\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: K"></a-text>
       </a-entity>
-      <a-entity id="seg-L" position="-0.06 -0.05 0.02" class="interactive-key seg-key" data-char="L" rotation="0 0.01 0">
-        <a-sphere radius="0.022" color="#ec4899" material="" geometry="" class="interactive-key"></a-sphere>
+      <a-entity id="seg-L" position="-0.06 -0.05 0.02" class="interactive-key seg-key" data-char="L">
+        <a-sphere radius="0.022" color="#ec4899" data-original-color="#ec4899" class="interactive-key"></a-sphere>
         <a-text value="L\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: L"></a-text>
       </a-entity>
 
-      <!-- Thumb Tip Actuator (Positioned at top for sideways palm orientation) -->
+      <!-- Thumb Tip Actuator -->
       <a-entity id="thumb-actuator" position="0.2 -0.03 0.03">
-        <a-sphere radius="0.02" color="#f43f5e" material="" geometry=""></a-sphere>
-        <a-text value="Thumb" align="center" color="#f43f5e" width="0.7" position="0 -0.03 0" rotation="0 0 -90" text=""></a-text>
+        <a-sphere radius="0.02" color="#f43f5e" data-original-color="#f43f5e"></a-sphere>
+        <a-text value="Thumb" align="center" color="#f43f5e" width="0.7" position="0 -0.03 0" rotation="0 0 -90"></a-text>
       </a-entity>
     </a-entity>
 
-    <!-- Camera Rig with Gaze 3s & WebXR Controllers -->
-    <a-entity id="rig" position="0 1.6 0">
-      <a-camera id="camera" look-controls="enabled: true">
+    <!-- 4. Camera Rig with Arrow + PageUp/PageDown Controls -->
+    <a-entity id="rig" position="0 1.6 0" camera-arrow-controls>
+      <a-camera id="camera" look-controls="enabled: true" wasd-controls="enabled: false">
         <a-entity position="0 0 -1"
                   geometry="primitive: ring; radiusInner: 0.008; radiusOuter: 0.015"
                   material="color: #818cf8; shader: flat"
@@ -201,6 +194,39 @@
   </a-scene>
 
   <script>
+    AFRAME.registerComponent('camera-arrow-controls', {
+      init: function () {
+        this.speed = 0.08;
+        this.keysPressed = {};
+
+        window.addEventListener('keydown', (e) => {
+          if (e.key.toLowerCase() === 'f') {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+          this.keysPressed[e.key] = true;
+        }, true);
+
+        window.addEventListener('keyup', (e) => {
+          this.keysPressed[e.key] = false;
+        });
+      },
+
+      tick: function () {
+        const el = this.el;
+        const pos = el.getAttribute('position');
+
+        if (this.keysPressed['ArrowUp']) pos.z -= this.speed;
+        if (this.keysPressed['ArrowDown']) pos.z += this.speed;
+        if (this.keysPressed['ArrowLeft']) pos.x -= this.speed;
+        if (this.keysPressed['ArrowRight']) pos.x += this.speed;
+        if (this.keysPressed['PageUp']) pos.y += this.speed;
+        if (this.keysPressed['PageDown']) pos.y -= this.speed;
+
+        el.setAttribute('position', pos);
+      }
+    });
+
     const C = window.APP_CONFIG || {
       screen: { position: { x: 0, y: 4.0, z: -1.6 } },
       qwerty: { position: { x: 0, y: 3.45, z: -1.45 } },
@@ -213,6 +239,11 @@
     let passthroughOn = true;
     let audioCtx = null;
 
+    let typingStartTime = null;
+    let wordCount = 0;
+    let currentWPM = 0;
+    let inactivityTimer = null;
+
     const segmentKeysMap = [
       { id: 'seg-A', char: 'A' }, { id: 'seg-B', char: 'B' }, { id: 'seg-C', char: 'C' },
       { id: 'seg-D', char: 'D' }, { id: 'seg-E', char: 'E' }, { id: 'seg-F', char: 'F' },
@@ -221,9 +252,23 @@
     ];
 
     const qwertyRows = [
-      ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
-      ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
-      ['Z', 'X', 'C', 'V', 'B', 'N', 'M']
+      [
+        { char: 'CLEAR', label: 'CLEAR', width: 0.18, color: '#ef4444' },
+        { char: 'Q' }, { char: 'W' }, { char: 'E' }, { char: 'R' }, { char: 'T' },
+        { char: 'Y' }, { char: 'U' }, { char: 'I' }, { char: 'O' }, { char: 'P' },
+        { char: 'BACK', label: 'BACK', width: 0.18, color: '#f59e0b' }
+      ],
+      [
+        { char: 'A' }, { char: 'S' }, { char: 'D' }, { char: 'F' },
+        { char: 'G' }, { char: 'H' }, { char: 'J' }, { char: 'K' }, { char: 'L' }
+      ],
+      [
+        { char: 'Z' }, { char: 'X' }, { char: 'C' }, { char: 'V' },
+        { char: 'B' }, { char: 'N' }, { char: 'M' }
+      ],
+      [
+        { char: 'SPACE', label: 'SPACE BAR', width: 0.7, color: '#6366f1' }
+      ]
     ];
 
     function playBeepSound() {
@@ -250,79 +295,132 @@
 
       qwertyRows.forEach((row, rowIndex) => {
         const yPos = -rowIndex * 0.15;
-        const rowWidth = row.length * 0.14;
+        let rowWidth = 0;
+        row.forEach(item => {
+          rowWidth += (item.width || 0.12) + 0.02;
+        });
         const startX = -rowWidth / 2 + 0.07;
 
-        row.forEach((char, colIndex) => {
-          const xPos = startX + colIndex * 0.14;
+        let currentX = startX;
+        row.forEach((item) => {
+          const char = item.char;
+          const label = item.label || char;
+          const width = item.width || 0.12;
+          const color = item.color || '#1e293b';
+
           const keyEl = document.createElement('a-entity');
           keyEl.setAttribute('id', `qwerty-key-${char}`);
           keyEl.setAttribute('class', 'interactive-key qwerty-key');
-          keyEl.setAttribute('position', `${xPos} ${yPos} 0`);
+          keyEl.setAttribute('position', `${currentX + width / 2 - 0.06} ${yPos} 0`);
           keyEl.setAttribute('data-char', char);
 
           const box = document.createElement('a-box');
-          box.setAttribute('width', '0.12');
+          box.setAttribute('width', width);
           box.setAttribute('height', '0.12');
           box.setAttribute('depth', '0.03');
-          box.setAttribute('color', '#1e293b');
+          box.setAttribute('color', color);
+          box.setAttribute('data-original-color', color);
           box.setAttribute('class', 'interactive-key');
           keyEl.appendChild(box);
 
           const text = document.createElement('a-text');
-          text.setAttribute('value', char);
+          text.setAttribute('value', label);
           text.setAttribute('align', 'center');
           text.setAttribute('color', '#f8fafc');
-          text.setAttribute('width', '1.8');
+          text.setAttribute('width', width > 0.3 ? '2.4' : '1.8');
           text.setAttribute('position', '0 0 0.02');
           keyEl.appendChild(text);
 
-          keyEl.addEventListener('click', () => typeChar(char));
+          keyEl.addEventListener('click', () => {
+            if (char === 'SPACE') typeChar(' ');
+            else if (char === 'BACK') handleBackspace();
+            else if (char === 'CLEAR') clearText();
+            else typeChar(char);
+          });
+
           container.appendChild(keyEl);
+          currentX += width + 0.02;
         });
       });
     }
 
-    function highlightQwertyKey(char) {
-      const keyEl = document.getElementById(`qwerty-key-${char}`);
+    function highlightKey(keyChar) {
+      const charUpper = keyChar.toUpperCase();
+      let keyEl = document.getElementById(`qwerty-key-${charUpper}`);
+      if (!keyEl && charUpper === ' ') keyEl = document.getElementById('qwerty-key-SPACE');
+      if (!keyEl) keyEl = document.getElementById(`seg-${charUpper}`);
+
       if (keyEl) {
-        const box = keyEl.querySelector('a-box');
+        const box = keyEl.querySelector('a-box') || keyEl.querySelector('a-sphere') || keyEl;
         if (box) {
-          const originalColor = box.getAttribute('color');
+          const origColor = box.getAttribute('data-original-color') || box.getAttribute('color') || '#1e293b';
           box.setAttribute('color', '#818cf8');
-          box.setAttribute('scale', '1.1 1.1 1.1');
+          box.setAttribute('scale', '1.15 1.15 1.15');
           setTimeout(() => {
-            box.setAttribute('color', originalColor);
+            box.setAttribute('color', origColor);
             box.setAttribute('scale', '1 1 1');
           }, 300);
         }
       }
     }
 
+    function updateWPM(char) {
+      if (inactivityTimer) clearTimeout(inactivityTimer);
+
+      inactivityTimer = setTimeout(() => {
+        resetWPM();
+      }, 10000);
+
+      if (typingStartTime === null) {
+        typingStartTime = performance.now();
+      }
+
+      if (char === ' ') {
+        wordCount++;
+      }
+
+      const elapsedMinutes = (performance.now() - typingStartTime) / 60000;
+      currentWPM = elapsedMinutes > 0 ? Math.round(wordCount / elapsedMinutes) : 0;
+    }
+
+    function resetWPM() {
+      typingStartTime = null;
+      wordCount = 0;
+      currentWPM = 0;
+      updateDisplay();
+    }
+
     function typeChar(char) {
       typedText += char;
+      updateWPM(char);
       updateDisplay();
       playBeepSound();
-      if (char !== ' ') highlightQwertyKey(char.toUpperCase());
+      highlightKey(char === ' ' ? 'SPACE' : char);
     }
 
     function handleBackspace() {
       if (typedText.length > 0) {
         typedText = typedText.slice(0, -1);
+        updateWPM('');
         updateDisplay();
         playBeepSound();
+        highlightKey('BACK');
       }
     }
 
     function clearText() {
       typedText = '';
-      updateDisplay();
+      resetWPM();
+      highlightKey('CLEAR');
     }
 
     function updateDisplay() {
       document.getElementById('text-output').innerText = typedText;
+      document.getElementById('wpm-val').innerText = currentWPM;
       const vrText = document.getElementById('vr-text-output');
       if (vrText) vrText.setAttribute('value', 'Output: ' + typedText);
+      const vrWpm = document.getElementById('vr-wpm-output');
+      if (vrWpm) vrWpm.setAttribute('value', 'WPM: ' + currentWPM);
     }
 
     function togglePassthrough() {
@@ -337,11 +435,15 @@
     }
 
     window.addEventListener('keydown', (e) => {
+      if (e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        e.stopPropagation();
+      }
       const key = e.key.toUpperCase();
       if (key >= 'A' && key <= 'Z' && key.length === 1) typeChar(key);
       else if (e.key === ' ') typeChar(' ');
       else if (e.key === 'Backspace') handleBackspace();
-    });
+    }, true);
 
     window.addEventListener('DOMContentLoaded', () => {
       buildQwertyKeyboard();

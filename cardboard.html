@@ -184,6 +184,7 @@
       <a-entity id="seg-K" position="-0.06 0.01 0.02" class="interactive-key seg-key" data-char="K"><a-sphere radius="0.022" color="#a855f7" data-original-color="#a855f7"></a-sphere><a-text value="K\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: K"></a-text></a-entity>
       <a-entity id="seg-L" position="-0.06 -0.05 0.02" class="interactive-key seg-key" data-char="L"><a-sphere radius="0.022" color="#ec4899" data-original-color="#ec4899"></a-sphere><a-text value="L\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: L"></a-text></a-entity>
 
+      <!-- Right Thumb Tip Actuator (Linked to Landmark 4) -->
       <a-entity id="right-thumb-actuator" position="0.2 -0.03 0.03"><a-sphere radius="0.02" color="#f43f5e" data-original-color="#f43f5e"></a-sphere><a-text value="Thumb" align="center" color="#f43f5e" width="0.7" position="0 -0.03 0" rotation="0 0 -90"></a-text></a-entity>
     </a-entity>
 
@@ -212,6 +213,7 @@
       <a-entity id="seg-W" position="0.06 0.01 0.02" class="interactive-key seg-key" data-char="W"><a-sphere radius="0.022" color="#a855f7" data-original-color="#a855f7"></a-sphere><a-text value="W\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 90" text="value: W"></a-text></a-entity>
       <a-entity id="seg-X" position="0.06 -0.05 0.02" class="interactive-key seg-key" data-char="X"><a-sphere radius="0.022" color="#ec4899" data-original-color="#ec4899"></a-sphere><a-text value="X\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 90" text="value: X"></a-text></a-entity>
 
+      <!-- Left Thumb Tip Actuator (Linked to Landmark 4) -->
       <a-entity id="left-thumb-actuator" position="-0.2 -0.03 0.03"><a-sphere radius="0.02" color="#f43f5e" data-original-color="#f43f5e"></a-sphere><a-text value="Thumb" align="center" color="#f43f5e" width="0.7" position="0 -0.03 0" rotation="0 0 90"></a-text></a-entity>
     </a-entity>
 
@@ -632,6 +634,13 @@
               // Draw 3D Wireframe Skeleton for Right Hand
               update3DSkeletonWireframe(landmarks, wrist, rightRig, 'right-hand', '#00FFFF');
             }
+
+            // Real-time update of Right Thumb Actuator to Landmark 4 (Thumb Tip)
+            const rightThumbEl = document.getElementById('right-thumb-actuator');
+            if (rightThumbEl) {
+              rightThumbEl.setAttribute('position', `${(thumbTip.x - wrist.x) * -1.2} ${(wrist.y - thumbTip.y) * 1.2} 0.03`);
+            }
+
             rightSegmentKeys.forEach(key => {
               const joint = landmarks[key.landmark];
               if (joint) {
@@ -660,6 +669,13 @@
               // Draw 3D Wireframe Skeleton for Left Hand
               update3DSkeletonWireframe(landmarks, wrist, leftRig, 'left-hand', '#A855F7');
             }
+
+            // Real-time update of Left Thumb Actuator to Landmark 4 (Thumb Tip)
+            const leftThumbEl = document.getElementById('left-thumb-actuator');
+            if (leftThumbEl) {
+              leftThumbEl.setAttribute('position', `${(thumbTip.x - wrist.x) * -1.2} ${(wrist.y - thumbTip.y) * 1.2} 0.03`);
+            }
+
             leftSegmentKeys.forEach(key => {
               const joint = landmarks[key.landmark];
               if (joint) {

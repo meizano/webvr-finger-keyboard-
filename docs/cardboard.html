@@ -52,7 +52,7 @@
       font-size: 0.85rem;
       color: #38bdf8;
     }
-    /* Bottom Display Panel Overlay (Font size reduced by 2 points to 0.95rem) */
+    /* Bottom Display Panel Overlay (WPM placed on LEFT of Output:) */
     #typed-display {
       position: fixed;
       bottom: 15px;
@@ -73,7 +73,7 @@
     .wpm-badge {
       color: #10b981;
       font-weight: bold;
-      margin-left: 10px;
+      margin-right: 10px;
     }
     /* Fullscreen AR.js Style Live Camera Background */
     #passthrough-video {
@@ -101,9 +101,9 @@
     <span id="status">Initializing Android & PC Camera Tracking...</span>
   </div>
 
-  <!-- 2D Bottom Text Output & WPM Overlay -->
+  <!-- 2D Bottom Text Output & WPM Overlay (WPM placed on LEFT of Output:) -->
   <div id="typed-display">
-    Output: <span id="text-output" style="color: #38bdf8; font-weight: bold;"></span> | WPM: <span id="wpm-val" style="color: #10b981; font-weight: bold;">0</span>
+    <span class="wpm-badge">WPM: <span id="wpm-val" style="color: #10b981; font-weight: bold;">0</span></span> | Output: <span id="text-output" style="color: #38bdf8; font-weight: bold;"></span>
   </div>
 
   <!-- 3D WebVR Scene (keyboard-shortcuts="enterVR: false" disables default 'F' fullscreen shortcut) -->
@@ -119,13 +119,13 @@
 
     <!-- ================================================================= -->
     <!-- 1. FLOATING SCREEN DISPLAY (POSITIONED AT Y=4.0, Z=-1.6)          -->
-    <!-- Font size reduced by 2 points (width 2.8)                         -->
+    <!-- Output Text Display Only (Font size reduced by 2 points -> width 2.8) -->
     <!-- ================================================================= -->
     <a-entity id="floating-screen" position="0 4 -1.6">
       <a-plane width="1.8" height="0.45" color="#0f172a" opacity="0.88" material="shader: flat" position="0 0 -0.05"></a-plane>
       <a-box width="1.82" height="0.47" depth="0.01" color="#38bdf8" opacity="0.3" position="0 0 -0.06"></a-box>
       
-      <!-- Output Text Display (Font size reduced by 2 points -> width 2.8) -->
+      <!-- Output Text Display -->
       <a-text id="vr-text-output" value="Output: " align="center" color="#38bdf8" width="2.8" position="0 0 0.02" font="dejavu"></a-text>
     </a-entity>
 
@@ -142,7 +142,7 @@
 
     <!-- ================================================================= -->
     <!-- 3. FLOATING VIRTUAL RIGHT HAND RIG (SIDEWAYS ORIENTATION)          -->
-    <!-- Positioned at 1.1 4 -1.6 with rotation 0 0 90                     -->
+    <!-- Parent a-entity (seg-A, etc) is the main interactive key entity    -->
     <!-- ================================================================= -->
     <a-entity id="virtual-hand-rig" position="1.1 4 -1.6" rotation="0 0 90">
       <!-- Visual Hand Palm Reference Line -->
@@ -152,60 +152,60 @@
         <a-text value="RIGHT HAND (A-L)" align="center" color="#94a3b8" width="1.1" position="-0.12 0.02 0.02" rotation="0 0 -90" text="value: R. HAND"></a-text>
       </a-entity>
 
-      <!-- 12 FINGER SEGMENT BUTTONS (A-L) -->
-      <!-- Index Finger -> A, B, C -->
+      <!-- 12 FINGER SEGMENT BUTTONS (A-L) - Parent a-entity (e.g. seg-A) is the target -->
+      <!-- TOP ROW: Index Finger -> A, B, C -->
       <a-entity id="seg-A" position="0.12 0.1 0.02" class="interactive-key seg-key" data-char="A">
-        <a-sphere radius="0.022" color="#ef4444" data-original-color="#ef4444" class="interactive-key"></a-sphere>
+        <a-sphere radius="0.022" color="#ef4444" data-original-color="#ef4444"></a-sphere>
         <a-text value="A\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: A"></a-text>
       </a-entity>
       <a-entity id="seg-B" position="0.12 0.03 0.02" class="interactive-key seg-key" data-char="B">
-        <a-sphere radius="0.022" color="#f97316" data-original-color="#f97316" class="interactive-key"></a-sphere>
+        <a-sphere radius="0.022" color="#f97316" data-original-color="#f97316"></a-sphere>
         <a-text value="B\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: B"></a-text>
       </a-entity>
       <a-entity id="seg-C" position="0.12 -0.04 0.02" class="interactive-key seg-key" data-char="C">
-        <a-sphere radius="0.022" color="#facc15" data-original-color="#facc15" class="interactive-key"></a-sphere>
+        <a-sphere radius="0.022" color="#facc15" data-original-color="#facc15"></a-sphere>
         <a-text value="C\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: C"></a-text>
       </a-entity>
 
-      <!-- Middle Finger -> D, E, F -->
+      <!-- SECOND ROW: Middle Finger -> D, E, F -->
       <a-entity id="seg-D" position="0.06 0.12 0.02" class="interactive-key seg-key" data-char="D">
-        <a-sphere radius="0.022" color="#22c55e" data-original-color="#22c55e" class="interactive-key"></a-sphere>
+        <a-sphere radius="0.022" color="#22c55e" data-original-color="#22c55e"></a-sphere>
         <a-text value="D\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: D"></a-text>
       </a-entity>
       <a-entity id="seg-E" position="0.06 0.05 0.02" class="interactive-key seg-key" data-char="E">
-        <a-sphere radius="0.022" color="#10b981" data-original-color="#10b981" class="interactive-key"></a-sphere>
+        <a-sphere radius="0.022" color="#10b981" data-original-color="#10b981"></a-sphere>
         <a-text value="E\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: E"></a-text>
       </a-entity>
       <a-entity id="seg-F" position="0.06 -0.02 0.02" class="interactive-key seg-key" data-char="F">
-        <a-sphere radius="0.022" color="#14b8a6" data-original-color="#14b8a6" class="interactive-key"></a-sphere>
+        <a-sphere radius="0.022" color="#14b8a6" data-original-color="#14b8a6"></a-sphere>
         <a-text value="F\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: F"></a-text>
       </a-entity>
 
-      <!-- Ring Finger -> G, H, I -->
+      <!-- THIRD ROW: Ring Finger -> G, H, I -->
       <a-entity id="seg-G" position="0 0.1 0.02" class="interactive-key seg-key" data-char="G">
-        <a-sphere radius="0.022" color="#06b6d4" data-original-color="#06b6d4" class="interactive-key"></a-sphere>
+        <a-sphere radius="0.022" color="#06b6d4" data-original-color="#06b6d4"></a-sphere>
         <a-text value="G\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: G"></a-text>
       </a-entity>
       <a-entity id="seg-H" position="0 0.03 0.02" class="interactive-key seg-key" data-char="H">
-        <a-sphere radius="0.022" color="#3b82f6" data-original-color="#3b82f6" class="interactive-key"></a-sphere>
+        <a-sphere radius="0.022" color="#3b82f6" data-original-color="#3b82f6"></a-sphere>
         <a-text value="H\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: H"></a-text>
       </a-entity>
       <a-entity id="seg-I" position="0 -0.04 0.02" class="interactive-key seg-key" data-char="I">
-        <a-sphere radius="0.022" color="#6366f1" data-original-color="#6366f1" class="interactive-key"></a-sphere>
+        <a-sphere radius="0.022" color="#6366f1" data-original-color="#6366f1"></a-sphere>
         <a-text value="I\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: I"></a-text>
       </a-entity>
 
-      <!-- Little Finger -> J, K, L -->
+      <!-- BOTTOM ROW: Little Finger -> J, K, L -->
       <a-entity id="seg-J" position="-0.06 0.07 0.02" class="interactive-key seg-key" data-char="J">
-        <a-sphere radius="0.022" color="#8b5cf6" data-original-color="#8b5cf6" class="interactive-key"></a-sphere>
+        <a-sphere radius="0.022" color="#8b5cf6" data-original-color="#8b5cf6"></a-sphere>
         <a-text value="J\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: J"></a-text>
       </a-entity>
       <a-entity id="seg-K" position="-0.06 0.01 0.02" class="interactive-key seg-key" data-char="K">
-        <a-sphere radius="0.022" color="#a855f7" data-original-color="#a855f7" class="interactive-key"></a-sphere>
+        <a-sphere radius="0.022" color="#a855f7" data-original-color="#a855f7"></a-sphere>
         <a-text value="K\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: K"></a-text>
       </a-entity>
       <a-entity id="seg-L" position="-0.06 -0.05 0.02" class="interactive-key seg-key" data-char="L">
-        <a-sphere radius="0.022" color="#ec4899" data-original-color="#ec4899" class="interactive-key"></a-sphere>
+        <a-sphere radius="0.022" color="#ec4899" data-original-color="#ec4899"></a-sphere>
         <a-text value="L\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: L"></a-text>
       </a-entity>
 
@@ -218,11 +218,12 @@
 
     <!-- ================================================================= -->
     <!-- 4. CAMERA RIG WITH ARROW + PAGEUP/PAGEDOWN CONTROLS               -->
-    <!-- WASD & Fullscreen 'F' key disabled                                -->
+    <!-- Gaze Reticle Ring resets & re-triggers when staring at same key   -->
     <!-- ================================================================= -->
     <a-entity id="rig" position="0 1.6 0" camera-arrow-controls>
       <a-camera id="camera" look-controls="enabled: true" wasd-controls="enabled: false">
-        <a-entity position="0 0 -1"
+        <a-entity id="gaze-cursor"
+                  position="0 0 -1"
                   geometry="primitive: ring; radiusInner: 0.008; radiusOuter: 0.015"
                   material="color: #38bdf8; shader: flat"
                   cursor="maxDistance: 30; fuse: true; fuseTimeout: 3000"
@@ -238,15 +239,6 @@
   <!-- APPLICATION JAVASCRIPT LOGIC & MODULAR FUNCTIONS                 -->
   <!-- ================================================================= -->
   <script>
-    // Intercept and completely block 'F' / 'f' key from toggling Fullscreen in browser or A-Frame
-    window.addEventListener('keydown', function (e) {
-      if (e.key.toLowerCase() === 'f' || e.code === 'KeyF' || e.keyCode === 70) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-      }
-    }, true);
-
     // Register Custom Camera Component for Arrow Keys & PageUp/PageDown
     AFRAME.registerComponent('camera-arrow-controls', {
       init: function () {
@@ -254,13 +246,8 @@
         this.keysPressed = {};
 
         window.addEventListener('keydown', (e) => {
-          if (e.key.toLowerCase() === 'f' || e.code === 'KeyF' || e.keyCode === 70) {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-          }
           this.keysPressed[e.key] = true;
-        }, true);
+        });
 
         window.addEventListener('keyup', (e) => {
           this.keysPressed[e.key] = false;
@@ -397,7 +384,6 @@
           box.setAttribute('depth', '0.03');
           box.setAttribute('color', color);
           box.setAttribute('data-original-color', color);
-          box.setAttribute('class', 'interactive-key');
           keyEl.appendChild(box);
 
           // Label
@@ -409,12 +395,14 @@
           text.setAttribute('position', '0 0 0.02');
           keyEl.appendChild(text);
 
-          // Attach Action Listener
-          keyEl.addEventListener('click', () => {
-            if (char === 'SPACE') typeChar(' ');
-            else if (char === 'BACK') handleBackspace();
-            else if (char === 'CLEAR') clearText();
-            else typeChar(char);
+          // Attach Action Listener to Parent Entity
+          keyEl.addEventListener('click', (e) => {
+            const keyEntity = e.currentTarget.closest('.interactive-key') || e.currentTarget;
+            const targetChar = keyEntity.getAttribute('data-char');
+            if (targetChar === 'SPACE') typeChar(' ');
+            else if (targetChar === 'BACK') handleBackspace();
+            else if (targetChar === 'CLEAR') clearText();
+            else typeChar(targetChar);
           });
 
           container.appendChild(keyEl);
@@ -452,7 +440,6 @@
     function updateWPM(char) {
       if (inactivityTimer) clearTimeout(inactivityTimer);
 
-      // Reset WPM after 10s of inactivity
       inactivityTimer = setTimeout(() => {
         resetWPM();
       }, 10000);
@@ -461,7 +448,6 @@
         typingStartTime = performance.now();
       }
 
-      // Count 1 word when SPACE is typed
       if (char === ' ') {
         wordCount++;
       }
@@ -659,18 +645,54 @@
       requestAnimationFrame(predictWebcam);
     }
 
+    // Reliable Physical Keyboard Input Handler
+    window.addEventListener('keydown', (e) => {
+      const key = e.key.toUpperCase();
+      if (key >= 'A' && key <= 'Z' && key.length === 1) {
+        typeChar(key);
+      } else if (e.key === ' ') {
+        e.preventDefault(); // Prevent page scroll
+        typeChar(' ');
+      } else if (e.key === 'Backspace') {
+        e.preventDefault();
+        handleBackspace();
+      }
+    });
+
     // Page Load Setup
     window.addEventListener('DOMContentLoaded', () => {
       buildQwertyKeyboard();
       initCamera();
       setTimeout(initMediaPipe, 800);
 
+      // Attach click listeners to Parent Segment Entities (e.g. seg-A)
       segmentKeysMap.forEach(key => {
         const segEl = document.getElementById(key.id);
         if (segEl) {
-          segEl.addEventListener('click', () => typeChar(key.char));
+          segEl.addEventListener('click', (e) => {
+            const keyEntity = e.currentTarget.closest('.interactive-key') || e.currentTarget;
+            const char = keyEntity.getAttribute('data-char');
+            if (char) typeChar(char);
+          });
         }
       });
+
+      // Setup Gaze Cursor Auto-Reset on Same Key
+      const gazeCursor = document.getElementById('gaze-cursor');
+      if (gazeCursor) {
+        gazeCursor.addEventListener('click', function () {
+          gazeCursor.setAttribute('scale', '1 1 1');
+          const cursorComp = gazeCursor.components.cursor;
+          if (cursorComp) {
+            cursorComp.fusing = false;
+            setTimeout(() => {
+              if (cursorComp.intersectedEl) {
+                cursorComp.startFusing(cursorComp.intersectedEl);
+              }
+            }, 150);
+          }
+        });
+      }
     });
   </script>
 </body>

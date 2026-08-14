@@ -229,13 +229,57 @@
         </a-entity>
       </a-camera>
 
-      <!-- Laser Pointer Controls for VR Controllers (Meta Quest, Daydream, etc.) -->
+      <!-- Laser Pointer Controls for VR Gamepads (Meta Quest, Daydream, etc.) -->
       <a-entity laser-controls="hand: right" raycaster="objects: .interactive-key, a-sphere, a-box, .clickable; lineColor: #38bdf8; lineOpacity: 0.8"></a-entity>
       <a-entity laser-controls="hand: left" raycaster="objects: .interactive-key, a-sphere, a-box, .clickable; lineColor: #a855f7; lineOpacity: 0.8"></a-entity>
     </a-entity>
   </a-scene>
 
   <script>
+    // 3D Skeleton Bone Connections (21 Landmarks)
+    const HAND_CONNECTIONS = [
+      [0, 1], [1, 2], [2, 3], [3, 4],       // Thumb
+      [0, 5], [5, 6], [6, 7], [7, 8],       // Index
+      [5, 9], [9, 10], [10, 11], [11, 12],  // Middle
+      [9, 13], [13, 14], [14, 15], [15, 16],// Ring
+      [13, 17], [17, 18], [18, 19], [19, 20],// Pinky
+      [0, 17]                              // Palm Base
+    ];
+
+    /**
+     * Renders 3D Wireframe Skeleton Lines on Detected Hands
+     */
+    function update3DSkeletonWireframe(landmarks, wrist, rigEl, prefix, color) {
+      if (!rigEl) return;
+      HAND_CONNECTIONS.forEach(([i, j], idx) => {
+        const ptA = landmarks[i];
+        const ptB = landmarks[j];
+        if (ptA && ptB) {
+          const p1 = `${(ptA.x - wrist.x) * -1.2} ${(wrist.y - ptA.y) * 1.2} 0.02`;
+          const p2 = `${(ptB.x - wrist.x) * -1.2} ${(wrist.y - ptB.y) * 1.2} 0.02`;
+
+          let boneEl = document.getElementById(`${prefix}-wireframe-${idx}`);
+          if (!boneEl) {
+            boneEl = document.createElement('a-entity');
+            boneEl.setAttribute('id', `${prefix}-wireframe-${idx}`);
+            rigEl.appendChild(boneEl);
+          }
+          boneEl.setAttribute('line', `start: ${p1}; end: ${p2}; color: ${color}; opacity: 0.85`);
+          boneEl.setAttribute('visible', 'true');
+        }
+      });
+    }
+
+    function hide3DSkeletonWireframe(rigEl, prefix) {
+      if (!rigEl) return;
+      HAND_CONNECTIONS.forEach((_, idx) => {
+        const boneEl = document.getElementById(`${prefix}-wireframe-${idx}`);
+        if (boneEl) {
+          boneEl.setAttribute('visible', 'false');
+        }
+      });
+    }
+
     AFRAME.registerComponent('camera-arrow-controls', {
       init: function () {
         this.speed = 0.08;
@@ -282,6 +326,7 @@
     let scrollOffset = 0;
     const MAX_VISIBLE_LINES = 3;
 
+    // Right Hand (A-L) and Left Hand (M-X) Finger Segment Keys Maps
     const rightSegmentKeys = [
       { id: 'seg-A', char: 'A', landmark: 8 }, { id: 'seg-B', char: 'B', landmark: 7 }, { id: 'seg-C', char: 'C', landmark: 6 },
       { id: 'seg-D', char: 'D', landmark: 12 }, { id: 'seg-E', char: 'E', landmark: 11 }, { id: 'seg-F', char: 'F', landmark: 10 },
@@ -584,6 +629,8 @@
               const ry = (1.0 - wrist.y - 0.5) * 1.2 + 1.25;
               const rz = (wrist.z - 0.2) * -1.2 - 0.8;
               rightRig.setAttribute('position', `${rx} ${ry} ${rz}`);
+              // Draw 3D Wireframe Skeleton for Right Hand
+              update3DSkeletonWireframe(landmarks, wrist, rightRig, 'right-hand', '#00FFFF');
             }
             rightSegmentKeys.forEach(key => {
               const joint = landmarks[key.landmark];
@@ -610,6 +657,8 @@
               const ly = (1.0 - wrist.y - 0.5) * 1.2 + 1.25;
               const lz = (wrist.z - 0.2) * -1.2 - 0.8;
               leftRig.setAttribute('position', `${lx} ${ly} ${lz}`);
+              // Draw 3D Wireframe Skeleton for Left Hand
+              update3DSkeletonWireframe(landmarks, wrist, leftRig, 'left-hand', '#A855F7');
             }
             leftSegmentKeys.forEach(key => {
               const joint = landmarks[key.landmark];
@@ -632,20 +681,36 @@
 
         if (!foundRight && isTrackingRightHand) {
           isTrackingRightHand = false;
-          document.getElementById('virtual-right-hand-rig').setAttribute('position', '1.1 4 -1.6');
+          const rightRig = document.getElementById('virtual-right-hand-rig');
+          if (rightRig) {
+            rightRig.setAttribute('position', '1.1 4 -1.6');
+            hide3DSkeletonWireframe(rightRig, 'right-hand');
+          }
         }
         if (!foundLeft && isTrackingLeftHand) {
           isTrackingLeftHand = false;
-          document.getElementById('virtual-left-hand-rig').setAttribute('position', '-1.1 4 -1.6');
+          const leftRig = document.getElementById('virtual-left-hand-rig');
+          if (leftRig) {
+            leftRig.setAttribute('position', '-1.1 4 -1.6');
+            hide3DSkeletonWireframe(leftRig, 'left-hand');
+          }
         }
       } else {
         if (isTrackingRightHand) {
           isTrackingRightHand = false;
-          document.getElementById('virtual-right-hand-rig').setAttribute('position', '1.1 4 -1.6');
+          const rightRig = document.getElementById('virtual-right-hand-rig');
+          if (rightRig) {
+            rightRig.setAttribute('position', '1.1 4 -1.6');
+            hide3DSkeletonWireframe(rightRig, 'right-hand');
+          }
         }
         if (isTrackingLeftHand) {
           isTrackingLeftHand = false;
-          document.getElementById('virtual-left-hand-rig').setAttribute('position', '-1.1 4 -1.6');
+          const leftRig = document.getElementById('virtual-left-hand-rig');
+          if (leftRig) {
+            leftRig.setAttribute('position', '-1.1 4 -1.6');
+            hide3DSkeletonWireframe(leftRig, 'left-hand');
+          }
         }
       }
     }

@@ -24,7 +24,7 @@
       left: 50%;
       transform: translateX(-50%);
       z-index: 1000;
-      background: rgba(15, 23, 42, 0.9);
+      background: rgba(15, 23, 42, 0.88);
       padding: 10px 18px;
       border-radius: 12px;
       border: 1px solid rgba(255, 255, 255, 0.2);
@@ -79,6 +79,17 @@
       transform: scaleX(-1);
       z-index: 1;
     }
+    /* Fullscreen AR.js Style Live Camera Background */
+    #passthrough-video {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+      z-index: -1;
+      display: block;
+    }
     a-scene {
       z-index: 10;
     }
@@ -89,7 +100,13 @@
   </style>
 </head>
 <body>
+  <!-- Live Camera Stream for Passthrough MR (Rear Camera Default for Mobile) -->
+  <video id="passthrough-video" autoplay playsinline muted></video>
+
   <div id="ui-bar">
+    <button onclick="window.togglePassthrough()">MR Passthrough: <span id="passthrough-label">ON</span></button>
+    <button onclick="window.toggleCamera()">Camera: <span id="cam-label">Rear</span></button>
+    <button onclick="window.location.href='mediapipe-test.html'">Test MediaPipe</button>
     <button onclick="window.clearText()">Clear</button>
     <button onclick="window.location.href='index.html'">Menu</button>
     <span id="status" style="color: #a855f7; font-size: 0.85rem;">Initializing TensorFlow Handpose...</span>
@@ -211,6 +228,8 @@
     };
 
     let typedText = '';
+    let useRearCamera = true; // Default to rear camera on mobile
+    let passthroughActive = true;
     let audioCtx = null;
     let lastTouchTime = {};
 
@@ -259,6 +278,47 @@
     }
     window.addEventListener('resize', updateCanvasSize);
     updateCanvasSize();
+
+    async function initCamera() {
+      const video = document.getElementById('passthrough-video');
+      if (window.stream) {
+        window.stream.getTracks().forEach(track => track.stop());
+      }
+
+      const constraintsList = [
+        { video: { facingMode: useRearCamera ? "environment" : "user", width: { ideal: 1280 }, height: { ideal: 720 } } },
+        { video: { facingMode: useRearCamera ? "environment" : "user", width: { ideal: 640 }, height: { ideal: 480 } } },
+        { video: { facingMode: "user" } },
+        { video: true }
+      ];
+
+      for (let constraints of constraintsList) {
+        try {
+          window.stream = await navigator.mediaDevices.getUserMedia(constraints);
+          video.srcObject = window.stream;
+          video.setAttribute('playsinline', '');
+          video.setAttribute('muted', '');
+          await video.play();
+          console.log("Camera initialized successfully for V3:", constraints);
+          break;
+        } catch (err) {
+          console.warn("Camera attempt warning:", err);
+        }
+      }
+    }
+
+    window.togglePassthrough = function() {
+      passthroughActive = !passthroughActive;
+      const video = document.getElementById('passthrough-video');
+      video.style.display = passthroughActive ? 'block' : 'none';
+      document.getElementById('passthrough-label').innerText = passthroughActive ? 'ON' : 'OFF';
+    };
+
+    window.toggleCamera = function() {
+      useRearCamera = !useRearCamera;
+      document.getElementById('cam-label').innerText = useRearCamera ? 'Rear' : 'Front';
+      initCamera();
+    };
 
     function playBeepSound() {
       try {
@@ -448,6 +508,8 @@
      * Initializes TensorFlow Handpose Model via Handsfree.js
      */
     function initHandsfreeTensorFlow() {
+      initCamera();
+
       if (typeof window.Handsfree === 'undefined') {
         document.getElementById('status').innerText = "Handsfree CDN Loading... Gaze 3s & Mouse Ready.";
         return;
@@ -464,14 +526,12 @@
       handsfree.start();
       document.getElementById('status').innerText = "TensorFlow Handpose Ready! Show Right Hand.";
 
-      // Listen for TensorFlow Handpose data events
       document.addEventListener('handsfree-data', (event) => {
         const data = event.detail;
         if (!data || !data.handpose || !data.handpose.landmarks) return;
 
         const rawLandmarks = data.handpose.landmarks;
         if (rawLandmarks && rawLandmarks.length >= 21) {
-          // Normalize 3D points
           const landmarks = rawLandmarks.map(pt => ({
             x: pt[0] / window.innerWidth,
             y: pt[1] / window.innerHeight,
@@ -491,7 +551,6 @@
       const thumbTip = landmarks[4];
       const now = performance.now();
 
-      // Dynamically position 3D Right Hand Rig
       const rightRig = document.getElementById('virtual-right-hand-rig');
       if (rightRig) {
         const rx = (wrist.x - 0.5) * -1.8;
@@ -500,13 +559,11 @@
         rightRig.setAttribute('position', `${rx} ${ry} ${rz}`);
       }
 
-      // Dynamic Thumb Actuator
       const rightThumbEl = document.getElementById('right-thumb-actuator');
       if (rightThumbEl) {
         rightThumbEl.setAttribute('position', `${(thumbTip.x - wrist.x) * -1.2} ${(wrist.y - thumbTip.y) * 1.2} 0.03`);
       }
 
-      // Check Right Hand Finger Segment Touches (A-L)
       rightSegmentKeys.forEach(key => {
         const joint = landmarks[key.landmark];
         if (joint) {
@@ -527,7 +584,6 @@
       canvasCtx.restore();
     }
 
-    // Physical Keyboard Input Listener
     window.addEventListener('keydown', (e) => {
       const key = e.key.toUpperCase();
       if (key >= 'A' && key <= 'Z' && key.length === 1) {
@@ -548,7 +604,7 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       buildQwertyKeyboard();
-      setTimeout(initHandsfreeTensorFlow, 1000);
+      setTimeout(initHandsfreeTensorFlow, 800);
 
       rightSegmentKeys.forEach(key => {
         const segEl = document.getElementById(key.id);

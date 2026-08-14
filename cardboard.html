@@ -269,6 +269,7 @@
     let scrollOffset = 0;
     const MAX_VISIBLE_LINES = 3;
 
+    // Right Hand (A-L) and Left Hand (M-X) Finger Segment Keys Maps
     const rightSegmentKeys = [
       { id: 'seg-A', char: 'A', landmark: 8 }, { id: 'seg-B', char: 'B', landmark: 7 }, { id: 'seg-C', char: 'C', landmark: 6 },
       { id: 'seg-D', char: 'D', landmark: 12 }, { id: 'seg-E', char: 'E', landmark: 11 }, { id: 'seg-F', char: 'F', landmark: 10 },
@@ -499,13 +500,15 @@
       const video = document.getElementById('passthrough-video');
       if (window.stream) window.stream.getTracks().forEach(track => track.stop());
 
-      const constraintsList = [
-        { video: { facingMode: useRearCamera ? { exact: "environment" } : "user", width: { ideal: 1280 }, height: { ideal: 720 } } },
+      // Soft constraint ladder without exact constraints to prevent OverconstrainedError on desktop webcams
+      const attempts = [
+        { video: { facingMode: useRearCamera ? "environment" : "user", width: { ideal: 1280 }, height: { ideal: 720 } } },
         { video: { facingMode: useRearCamera ? "environment" : "user", width: { ideal: 640 }, height: { ideal: 480 } } },
+        { video: { facingMode: "user" } },
         { video: true }
       ];
 
-      for (let constraints of constraintsList) {
+      for (let constraints of attempts) {
         try {
           window.stream = await navigator.mediaDevices.getUserMedia(constraints);
           video.srcObject = window.stream;
@@ -513,8 +516,11 @@
           video.setAttribute('muted', '');
           await video.play();
           video.addEventListener('loadeddata', predictWebcam);
+          console.log("Camera started successfully with:", constraints);
           break;
-        } catch (err) { console.warn(err); }
+        } catch (e) {
+          console.warn("Camera constraint attempt failed:", e.name || e.message);
+        }
       }
     }
 
@@ -596,7 +602,6 @@
                 const rz = (wrist.z - 0.2) * -1.2 - 0.8;
                 rightRig.setAttribute('position', `${rx} ${ry} ${rz}`);
               }
-              // Check Right Hand Thumb Touch Proximity (A-L)
               rightSegmentKeys.forEach(key => {
                 const joint = landmarks[key.landmark];
                 if (joint) {
@@ -623,7 +628,6 @@
                 const lz = (wrist.z - 0.2) * -1.2 - 0.8;
                 leftRig.setAttribute('position', `${lx} ${ly} ${lz}`);
               }
-              // Check Left Hand Thumb Touch Proximity (M-X)
               leftSegmentKeys.forEach(key => {
                 const joint = landmarks[key.landmark];
                 if (joint) {

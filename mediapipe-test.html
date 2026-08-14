@@ -138,13 +138,16 @@
       if (window.stream) {
         window.stream.getTracks().forEach(track => track.stop());
       }
-      const constraintsList = [
-        { video: { facingMode: useRearCamera ? { exact: "environment" } : "user", width: { ideal: 1280 }, height: { ideal: 720 } } },
+
+      // Soft constraint ladder without exact constraints to prevent OverconstrainedError on desktop webcams
+      const attempts = [
+        { video: { facingMode: useRearCamera ? "environment" : "user", width: { ideal: 1280 }, height: { ideal: 720 } } },
         { video: { facingMode: useRearCamera ? "environment" : "user", width: { ideal: 640 }, height: { ideal: 480 } } },
+        { video: { facingMode: "user" } },
         { video: true }
       ];
 
-      for (let constraints of constraintsList) {
+      for (let constraints of attempts) {
         try {
           window.stream = await navigator.mediaDevices.getUserMedia(constraints);
           video.srcObject = window.stream;
@@ -152,8 +155,11 @@
           video.setAttribute('muted', '');
           await video.play();
           video.addEventListener('loadeddata', predictLoop);
+          console.log("Camera started successfully with:", constraints);
           break;
-        } catch (e) { console.warn(e); }
+        } catch (e) {
+          console.warn("Camera constraint attempt failed:", e.name || e.message);
+        }
       }
     }
 

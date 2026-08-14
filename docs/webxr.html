@@ -86,17 +86,37 @@
       <mixin id="key-btn" geometry="primitive: box; width: 0.12; height: 0.12; depth: 0.03" material="shader: flat; color: #1e293b"></mixin>
     </a-assets>
 
+    <!-- Mouse Pointer Raycaster for Desktop Mouse Selection -->
+    <a-entity cursor="rayOrigin: mouse" raycaster="objects: .interactive-key, a-sphere, a-box, .clickable"></a-entity>
+
     <!-- Lighting -->
     <a-entity light="type: ambient; color: #ffffff; intensity: 0.9"></a-entity>
     <a-entity light="type: directional; color: #818cf8; intensity: 0.6" position="1 4 2"></a-entity>
 
-    <!-- 1. Floating Screen Display (Y=4.0, Z=-1.6) -->
+    <!-- ================================================================= -->
+    <!-- 1. FLOATING SCREEN DISPLAY WITH 3D SCROLLBAR (Y=4.0, Z=-1.6)      -->
+    <!-- Text area wraps cleanly and includes Up/Down scrollbar controls    -->
+    <!-- ================================================================= -->
     <a-entity id="floating-screen" position="0 4 -1.6">
-      <a-plane width="1.8" height="0.45" color="#0f172a" opacity="0.88" material="shader: flat" position="0 0 -0.05"></a-plane>
-      <a-box width="1.82" height="0.47" depth="0.01" color="#818cf8" opacity="0.3" position="0 0 -0.06"></a-box>
+      <a-plane width="1.8" height="0.48" color="#0f172a" opacity="0.88" material="shader: flat" position="0 0 -0.05"></a-plane>
+      <a-box width="1.82" height="0.5" depth="0.01" color="#818cf8" opacity="0.3" position="0 0 -0.06"></a-box>
       
-      <!-- Output Text Display (Font size reduced by 2 points -> width 2.8) -->
-      <a-text id="vr-text-output" value="Output: " align="center" color="#818cf8" width="2.8" position="0 0 0.02" font="dejavu"></a-text>
+      <!-- Wrapped Output Text Display -->
+      <a-text id="vr-text-output" value="Output: " align="left" color="#818cf8" width="2.4" position="-0.78 0.1 0.02" font="dejavu"></a-text>
+
+      <!-- 3D Scrollbar Container on Right Side of Screen -->
+      <a-entity id="screen-scrollbar" position="0.8 0 0.02">
+        <a-entity id="btn-scroll-up" class="interactive-key" position="0 0.15 0.02" onclick="scrollTextUp()">
+          <a-box width="0.08" height="0.08" depth="0.03" color="#6366f1" data-original-color="#6366f1" class="interactive-key"></a-box>
+          <a-text value="^" align="center" color="white" width="1.8" position="0 0 0.02"></a-text>
+        </a-entity>
+        <a-plane position="0 0 0.01" width="0.03" height="0.22" color="#1e293b" opacity="0.8"></a-plane>
+        <a-box id="scroll-thumb" position="0 0.05 0.02" width="0.04" height="0.06" color="#818cf8"></a-box>
+        <a-entity id="btn-scroll-down" class="interactive-key" position="0 -0.15 0.02" onclick="scrollTextDown()">
+          <a-box width="0.08" height="0.08" depth="0.03" color="#6366f1" data-original-color="#6366f1" class="interactive-key"></a-box>
+          <a-text value="v" align="center" color="white" width="1.8" position="0 0 0.02"></a-text>
+        </a-entity>
+      </a-entity>
     </a-entity>
 
     <!-- 2. Synchronized 3D QWERTY Keyboard (Y=3.45, Z=-1.45) -->
@@ -240,6 +260,10 @@
     let wordCount = 0;
     let currentWPM = 0;
     let inactivityTimer = null;
+
+    // Screen Scroll Variables
+    let scrollOffset = 0;
+    const MAX_VISIBLE_LINES = 3;
 
     const segmentKeysMap = [
       { id: 'seg-A', char: 'A' }, { id: 'seg-B', char: 'B' }, { id: 'seg-C', char: 'C' },
@@ -388,9 +412,43 @@
       updateDisplay();
     }
 
+    function formatScreenLines(text, maxCharsPerLine = 32) {
+      if (!text) return ["Output: "];
+      const lines = [];
+      let currentLine = "";
+
+      for (let char of text) {
+        if (currentLine.length >= maxCharsPerLine) {
+          lines.push(currentLine);
+          currentLine = char;
+        } else {
+          currentLine += char;
+        }
+      }
+      if (currentLine) lines.push(currentLine);
+      return lines;
+    }
+
+    function scrollTextUp() {
+      if (scrollOffset > 0) {
+        scrollOffset--;
+        updateDisplay();
+      }
+    }
+
+    function scrollTextDown() {
+      const lines = formatScreenLines(typedText);
+      if (scrollOffset < Math.max(0, lines.length - MAX_VISIBLE_LINES)) {
+        scrollOffset++;
+        updateDisplay();
+      }
+    }
+
     function typeChar(char) {
       typedText += char;
       updateWPM(char);
+      const lines = formatScreenLines(typedText);
+      scrollOffset = Math.max(0, lines.length - MAX_VISIBLE_LINES);
       updateDisplay();
       playBeepSound();
       highlightKey(char === ' ' ? 'SPACE' : char);
@@ -400,6 +458,8 @@
       if (typedText.length > 0) {
         typedText = typedText.slice(0, -1);
         updateWPM('');
+        const lines = formatScreenLines(typedText);
+        scrollOffset = Math.max(0, lines.length - MAX_VISIBLE_LINES);
         updateDisplay();
         playBeepSound();
         highlightKey('BACK');
@@ -408,6 +468,7 @@
 
     function clearText() {
       typedText = '';
+      scrollOffset = 0;
       resetWPM();
       highlightKey('CLEAR');
     }
@@ -415,10 +476,24 @@
     function updateDisplay() {
       document.getElementById('text-output').innerText = typedText;
       document.getElementById('wpm-val').innerText = currentWPM;
+
+      const lines = formatScreenLines(typedText);
+      const visibleLines = lines.slice(scrollOffset, scrollOffset + MAX_VISIBLE_LINES);
+      const formattedVrText = "Output: " + visibleLines.join("\n");
+
       const vrText = document.getElementById('vr-text-output');
-      if (vrText) vrText.setAttribute('value', 'Output: ' + typedText);
+      if (vrText) vrText.setAttribute('value', formattedVrText);
+
       const vrWpm = document.getElementById('vr-wpm-output');
       if (vrWpm) vrWpm.setAttribute('value', 'WPM: ' + currentWPM);
+
+      const thumb = document.getElementById('scroll-thumb');
+      if (thumb) {
+        const totalMaxScroll = Math.max(1, lines.length - MAX_VISIBLE_LINES);
+        const progress = lines.length <= MAX_VISIBLE_LINES ? 0 : scrollOffset / totalMaxScroll;
+        const thumbY = 0.08 - progress * 0.16;
+        thumb.setAttribute('position', `0 ${thumbY} 0.02`);
+      }
     }
 
     function togglePassthrough() {
@@ -438,12 +513,17 @@
       if (key >= 'A' && key <= 'Z' && key.length === 1) {
         typeChar(key);
       } else if (e.key === ' ') {
-        e.preventDefault(); // Prevent page scroll
+        e.preventDefault();
         typeChar(' ');
       } else if (e.key === 'Backspace') {
         e.preventDefault();
         handleBackspace();
       }
+    });
+
+    window.addEventListener('wheel', (e) => {
+      if (e.deltaY < 0) scrollTextUp();
+      else if (e.deltaY > 0) scrollTextDown();
     });
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -459,7 +539,6 @@
         }
       });
 
-      // Setup Gaze Cursor Auto-Reset on Same Key
       const gazeCursor = document.getElementById('gaze-cursor');
       if (gazeCursor) {
         gazeCursor.addEventListener('click', function () {

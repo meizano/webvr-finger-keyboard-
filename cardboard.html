@@ -113,20 +113,41 @@
       <mixin id="seg-btn" geometry="primitive: sphere; radius: 0.022" material="shader: flat; color: #38bdf8; opacity: 0.9"></mixin>
     </a-assets>
 
+    <!-- Mouse Pointer Raycaster for Desktop Mouse Selection -->
+    <a-entity cursor="rayOrigin: mouse" raycaster="objects: .interactive-key, a-sphere, a-box, .clickable"></a-entity>
+
     <!-- Lighting -->
     <a-entity light="type: ambient; color: #ffffff; intensity: 0.9"></a-entity>
     <a-entity light="type: directional; color: #38bdf8; intensity: 0.6" position="1 3 2"></a-entity>
 
     <!-- ================================================================= -->
-    <!-- 1. FLOATING SCREEN DISPLAY (POSITIONED AT Y=4.0, Z=-1.6)          -->
-    <!-- Output Text Display Only (Font size reduced by 2 points -> width 2.8) -->
+    <!-- 1. FLOATING SCREEN DISPLAY WITH 3D SCROLLBAR (Y=4.0, Z=-1.6)      -->
+    <!-- Text area wraps cleanly and includes Up/Down scrollbar controls    -->
     <!-- ================================================================= -->
     <a-entity id="floating-screen" position="0 4 -1.6">
-      <a-plane width="1.8" height="0.45" color="#0f172a" opacity="0.88" material="shader: flat" position="0 0 -0.05"></a-plane>
-      <a-box width="1.82" height="0.47" depth="0.01" color="#38bdf8" opacity="0.3" position="0 0 -0.06"></a-box>
+      <a-plane width="1.8" height="0.48" color="#0f172a" opacity="0.88" material="shader: flat" position="0 0 -0.05"></a-plane>
+      <a-box width="1.82" height="0.5" depth="0.01" color="#38bdf8" opacity="0.3" position="0 0 -0.06"></a-box>
       
-      <!-- Output Text Display -->
-      <a-text id="vr-text-output" value="Output: " align="center" color="#38bdf8" width="2.8" position="0 0 0.02" font="dejavu"></a-text>
+      <!-- Wrapped Output Text Display -->
+      <a-text id="vr-text-output" value="Output: " align="left" color="#38bdf8" width="2.4" position="-0.78 0.1 0.02" font="dejavu"></a-text>
+
+      <!-- 3D Scrollbar Container on Right Side of Screen -->
+      <a-entity id="screen-scrollbar" position="0.8 0 0.02">
+        <!-- Up Scroll Arrow Button -->
+        <a-entity id="btn-scroll-up" class="interactive-key" position="0 0.15 0.02" onclick="scrollTextUp()">
+          <a-box width="0.08" height="0.08" depth="0.03" color="#0ea5e9" data-original-color="#0ea5e9" class="interactive-key"></a-box>
+          <a-text value="^" align="center" color="white" width="1.8" position="0 0 0.02"></a-text>
+        </a-entity>
+        <!-- Scroll Track -->
+        <a-plane position="0 0 0.01" width="0.03" height="0.22" color="#1e293b" opacity="0.8"></a-plane>
+        <!-- Scroll Thumb Indicator -->
+        <a-box id="scroll-thumb" position="0 0.05 0.02" width="0.04" height="0.06" color="#38bdf8"></a-box>
+        <!-- Down Scroll Arrow Button -->
+        <a-entity id="btn-scroll-down" class="interactive-key" position="0 -0.15 0.02" onclick="scrollTextDown()">
+          <a-box width="0.08" height="0.08" depth="0.03" color="#0ea5e9" data-original-color="#0ea5e9" class="interactive-key"></a-box>
+          <a-text value="v" align="center" color="white" width="1.8" position="0 0 0.02"></a-text>
+        </a-entity>
+      </a-entity>
     </a-entity>
 
     <!-- ================================================================= -->
@@ -292,6 +313,10 @@
     let currentWPM = 0;
     let inactivityTimer = null;
 
+    // Screen Scroll Variables
+    let scrollOffset = 0;
+    const MAX_VISIBLE_LINES = 3;
+
     // 12 Finger Segment Keys Definition
     const segmentKeysMap = [
       { id: 'seg-A', char: 'A', landmark: 8 },  // Index Tip
@@ -308,7 +333,7 @@
       { id: 'seg-L', char: 'L', landmark: 18 }  // Little Base
     ];
 
-    // QWERTY Layout Rows (SPACE BAR default color #1e293b matches all QWERTY keys)
+    // QWERTY Layout Rows
     const qwertyRows = [
       [
         { char: 'CLEAR', label: 'CLEAR', width: 0.18, color: '#ef4444' },
@@ -377,7 +402,6 @@
           keyEl.setAttribute('position', `${currentX + width / 2 - 0.06} ${yPos} 0`);
           keyEl.setAttribute('data-char', char);
 
-          // Box Mesh with explicit data-original-color attribute
           const box = document.createElement('a-box');
           box.setAttribute('width', width);
           box.setAttribute('height', '0.12');
@@ -386,7 +410,6 @@
           box.setAttribute('data-original-color', color);
           keyEl.appendChild(box);
 
-          // Label
           const text = document.createElement('a-text');
           text.setAttribute('value', label);
           text.setAttribute('align', 'center');
@@ -395,7 +418,6 @@
           text.setAttribute('position', '0 0 0.02');
           keyEl.appendChild(text);
 
-          // Attach Action Listener to Parent Entity
           keyEl.addEventListener('click', (e) => {
             const keyEntity = e.currentTarget.closest('.interactive-key') || e.currentTarget;
             const targetChar = keyEntity.getAttribute('data-char');
@@ -464,11 +486,50 @@
     }
 
     /**
+     * 3D Floating Screen Text Wrapping & Scroll Logic
+     */
+    function formatScreenLines(text, maxCharsPerLine = 32) {
+      if (!text) return ["Output: "];
+      const words = text.split('');
+      const lines = [];
+      let currentLine = "";
+
+      for (let char of text) {
+        if (currentLine.length >= maxCharsPerLine) {
+          lines.push(currentLine);
+          currentLine = char;
+        } else {
+          currentLine += char;
+        }
+      }
+      if (currentLine) lines.push(currentLine);
+      return lines;
+    }
+
+    function scrollTextUp() {
+      if (scrollOffset > 0) {
+        scrollOffset--;
+        updateDisplay();
+      }
+    }
+
+    function scrollTextDown() {
+      const lines = formatScreenLines(typedText);
+      if (scrollOffset < Math.max(0, lines.length - MAX_VISIBLE_LINES)) {
+        scrollOffset++;
+        updateDisplay();
+      }
+    }
+
+    /**
      * Handles Character Input
      */
     function typeChar(char) {
       typedText += char;
       updateWPM(char);
+      // Automatically scroll down on new character if lines overflow
+      const lines = formatScreenLines(typedText);
+      scrollOffset = Math.max(0, lines.length - MAX_VISIBLE_LINES);
       updateDisplay();
       playBeepSound();
       highlightKey(char === ' ' ? 'SPACE' : char);
@@ -478,6 +539,8 @@
       if (typedText.length > 0) {
         typedText = typedText.slice(0, -1);
         updateWPM('');
+        const lines = formatScreenLines(typedText);
+        scrollOffset = Math.max(0, lines.length - MAX_VISIBLE_LINES);
         updateDisplay();
         playBeepSound();
         highlightKey('BACK');
@@ -486,17 +549,35 @@
 
     function clearText() {
       typedText = '';
+      scrollOffset = 0;
       resetWPM();
       highlightKey('CLEAR');
     }
 
     function updateDisplay() {
+      // Update 2D Display
       document.getElementById('text-output').innerText = typedText;
       document.getElementById('wpm-val').innerText = currentWPM;
+
+      // Format 3D Screen Wrapped Lines with Scroll Windowing
+      const lines = formatScreenLines(typedText);
+      const visibleLines = lines.slice(scrollOffset, scrollOffset + MAX_VISIBLE_LINES);
+      const formattedVrText = "Output: " + visibleLines.join("\n");
+
       const vrText = document.getElementById('vr-text-output');
-      if (vrText) vrText.setAttribute('value', 'Output: ' + typedText);
+      if (vrText) vrText.setAttribute('value', formattedVrText);
+
       const vrWpm = document.getElementById('vr-wpm-output');
       if (vrWpm) vrWpm.setAttribute('value', 'WPM: ' + currentWPM);
+
+      // Update 3D Scroll Thumb Position
+      const thumb = document.getElementById('scroll-thumb');
+      if (thumb) {
+        const totalMaxScroll = Math.max(1, lines.length - MAX_VISIBLE_LINES);
+        const progress = lines.length <= MAX_VISIBLE_LINES ? 0 : scrollOffset / totalMaxScroll;
+        const thumbY = 0.08 - progress * 0.16;
+        thumb.setAttribute('position', `0 ${thumbY} 0.02`);
+      }
     }
 
     /**
@@ -545,7 +626,7 @@
     }
 
     /**
-     * Initializes MediaPipe Tasks Vision HandLandmarker
+     * Initializes MediaPipe Tasks Vision HandLandmarker with Official Google Options & Right Hand Filtering
      */
     async function initMediaPipe() {
       try {
@@ -563,10 +644,11 @@
                 delegate: delegate
               },
               runningMode: "VIDEO",
-              numHands: 1
+              numHands: 2, // Detect up to 2 hands for robust right hand filtering
+              minHandDetectionConfidence: 0.5
             });
             console.log(`MediaPipe initialized using ${delegate} delegate.`);
-            document.getElementById('status').innerText = `Hand Tracking Ready (${delegate}). Show Right Hand or Gaze 3s!`;
+            document.getElementById('status').innerText = `Hand Tracking Ready (${delegate}). Show Right Hand or Gaze 3s / Mouse!`;
             break;
           } catch (e) {
             console.warn(`MediaPipe ${delegate} delegate failed:`, e);
@@ -574,12 +656,12 @@
         }
       } catch (e) {
         console.warn("MediaPipe FilesetResolver error:", e);
-        document.getElementById('status').innerText = "Gaze 3s Ready! (Show Right Hand or gaze at keys)";
+        document.getElementById('status').innerText = "Gaze 3s & Mouse Ready! (Show Right Hand or gaze/click)";
       }
     }
 
     /**
-     * Real-time MediaPipe Hand Detection Loop
+     * Real-time MediaPipe Hand Detection Loop with Right Hand Classification
      */
     let lastVideoTime = -1;
     async function predictWebcam() {
@@ -595,8 +677,21 @@
         const results = handLandmarker.detectForVideo(video, startTimeMs);
 
         if (results.landmarks && results.landmarks.length > 0) {
+          // Find Right Hand from results.handedness
+          let rightHandIdx = -1;
+          if (results.handedness && results.handedness.length > 0) {
+            for (let i = 0; i < results.handedness.length; i++) {
+              const label = results.handedness[i][0].categoryName || results.handedness[i][0].displayName;
+              if (label === 'Right') {
+                rightHandIdx = i;
+                break;
+              }
+            }
+          }
+          if (rightHandIdx === -1) rightHandIdx = 0; // Fallback to first detected hand
+
           isTrackingHand = true;
-          const landmarks = results.landmarks[0];
+          const landmarks = results.landmarks[rightHandIdx];
           const thumbTip = landmarks[4];
           const wrist = landmarks[0];
 
@@ -657,6 +752,12 @@
         e.preventDefault();
         handleBackspace();
       }
+    });
+
+    // Mouse Wheel Scroll Listener for Screen Text
+    window.addEventListener('wheel', (e) => {
+      if (e.deltaY < 0) scrollTextUp();
+      else if (e.deltaY > 0) scrollTextDown();
     });
 
     // Page Load Setup

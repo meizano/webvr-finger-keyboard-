@@ -80,67 +80,115 @@
     <a-entity light="type: ambient; color: #ffffff; intensity: 0.9"></a-entity>
     <a-entity light="type: directional; color: #818cf8; intensity: 0.6" position="1 4 2"></a-entity>
 
-    <!-- 1. Floating Screen Display (Positioned at Y=2.1 Eye Level, Z=-1.6) -->
-    <a-entity id="floating-screen" position="0 2.1 -1.6">
+    <!-- 1. Floating Screen Display (Positioned at Y=4.0, Z=-1.6) -->
+    <a-entity id="floating-screen" position="0 4 -1.6">
       <a-plane width="1.8" height="0.5" color="#0f172a" opacity="0.88" material="shader: flat" position="0 0 -0.05"></a-plane>
       <a-box width="1.82" height="0.52" depth="0.01" color="#818cf8" opacity="0.3" position="0 0 -0.06"></a-box>
       <a-text id="vr-text-output" value="Output: " align="center" color="#818cf8" width="3.4" position="0 0.12 0.02" font="dejavu"></a-text>
 
       <!-- Action Buttons pushed forward to Z=0.08 to prevent Z-fighting -->
       <a-entity position="-0.45 -0.12 0.08" class="interactive-key" data-char="SPACE" onclick="typeChar(' ')">
-        <a-box width="0.28" height="0.1" depth="0.04" color="#6366f1"></a-box>
+        <a-box width="0.28" height="0.1" depth="0.04" color="#6366f1" class="interactive-key"></a-box>
         <a-text value="SPACE" align="center" color="white" width="1.2" position="0 0 0.03"></a-text>
       </a-entity>
       <a-entity position="0 -0.12 0.08" class="interactive-key" data-char="BACKSPACE" onclick="handleBackspace()">
-        <a-box width="0.28" height="0.1" depth="0.04" color="#f59e0b"></a-box>
+        <a-box width="0.28" height="0.1" depth="0.04" color="#f59e0b" class="interactive-key"></a-box>
         <a-text value="BACK" align="center" color="white" width="1.2" position="0 0 0.03"></a-text>
       </a-entity>
       <a-entity position="0.45 -0.12 0.08" class="interactive-key" data-char="CLEAR" onclick="clearText()">
-        <a-box width="0.28" height="0.1" depth="0.04" color="#ef4444"></a-box>
+        <a-box width="0.28" height="0.1" depth="0.04" color="#ef4444" class="interactive-key"></a-box>
         <a-text value="CLEAR" align="center" color="white" width="1.2" position="0 0 0.03"></a-text>
       </a-entity>
     </a-entity>
 
-    <!-- 2. Synchronized 3D QWERTY Keyboard -->
-    <a-entity id="qwerty-keyboard" position="0 1.45 -1.45" rotation="-15 0 0">
+    <!-- 2. Synchronized 3D QWERTY Keyboard (Positioned at Y=3.45, Z=-1.45) -->
+    <a-entity id="qwerty-keyboard" position="0 3.45 -1.45" rotation="-15 0 0">
       <a-entity id="qwerty-keys-container"></a-entity>
     </a-entity>
 
-    <!-- 3. Floating Virtual Right Hand (Sideways Orientation: Thumb Top, Pinky Bottom) -->
-    <a-entity id="virtual-hand-rig" position="-0.05 1.25 -0.8" rotation="10 -25 50">
+    <!-- 3. Floating Virtual Right Hand Rig (Exact User Provided HTML Positioned at 1.1 4 -1.6) -->
+    <a-entity id="virtual-hand-rig" position="1.1 4 -1.6" rotation="0 0 90">
+      <!-- Visual Hand Palm Reference Line -->
       <a-entity id="hand-mesh-reference">
-        <a-box position="0.02 0.02 -0.01" width="0.18" height="0.18" depth="0.015" color="#1e293b" opacity="0.65"></a-box>
-        <a-cylinder position="-0.08 -0.08 -0.01" rotation="0 0 -45" radius="0.012" height="0.14" color="#334155" opacity="0.65"></a-cylinder>
-        <a-text value="RIGHT HAND (A-L)" align="center" color="#94a3b8" width="1.1" position="0.02 -0.11 0.02" rotation="0 0 -50"></a-text>
+        <!-- Palm Backplate -->
+        <a-box position="0.02 0.02 -0.01" width="0.18" height="0.18" depth="0.015" color="#1e293b" opacity="0.65" material="" geometry=""></a-box>
+        <!-- Wrist Cylinder -->
+        <a-cylinder position="-0.08 -0.08 -0.01" rotation="0 0 -45" radius="0.012" height="0.14" color="#334155" opacity="0.65" material="" geometry=""></a-cylinder>
+        <a-text value="RIGHT HAND (A-L)" align="center" color="#94a3b8" width="1.1" position="-0.12 0.02 0.02" rotation="0 0 -90" text="value: R. HAND"></a-text>
       </a-entity>
 
-      <!-- 12 Finger Segment Buttons (A through L) -->
-      <a-entity id="seg-A" position="0.08 0.12 0.02" class="interactive-key seg-key" data-char="A"><a-sphere radius="0.022" color="#ef4444"></a-sphere><a-text value="A\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -50"></a-text></a-entity>
-      <a-entity id="seg-B" position="0.02 0.11 0.02" class="interactive-key seg-key" data-char="B"><a-sphere radius="0.022" color="#f97316"></a-sphere><a-text value="B\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -50"></a-text></a-entity>
-      <a-entity id="seg-C" position="-0.04 0.1 0.02" class="interactive-key seg-key" data-char="C"><a-sphere radius="0.022" color="#facc15"></a-sphere><a-text value="C\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -50"></a-text></a-entity>
+      <!-- 12 FINGER SEGMENT BUTTONS (A-L) MAPPED ACROSS 4 FINGERS -->
+      <!-- TOP ROW: Index Finger -> A (Tip), B (Mid), C (Base) -->
+      <a-entity id="seg-A" position="0.12 0.1 0.02" class="interactive-key seg-key" data-char="A" rotation="">
+        <a-sphere radius="0.022" color="#ef4444" material="" geometry="" class="interactive-key"></a-sphere>
+        <a-text value="A\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: A"></a-text>
+      </a-entity>
+      <a-entity id="seg-B" position="0.12 0.03 0.02" class="interactive-key seg-key" data-char="B" rotation="">
+        <a-sphere radius="0.022" color="#f97316" material="" geometry="" class="interactive-key"></a-sphere>
+        <a-text value="B\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: B"></a-text>
+      </a-entity>
+      <a-entity id="seg-C" position="0.12 -0.04 0.02" class="interactive-key seg-key" data-char="C" rotation="">
+        <a-sphere radius="0.022" color="#facc15" material="" geometry="" class="interactive-key"></a-sphere>
+        <a-text value="C\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: C"></a-text>
+      </a-entity>
 
-      <a-entity id="seg-D" position="0.09 0.06 0.02" class="interactive-key seg-key" data-char="D"><a-sphere radius="0.022" color="#22c55e"></a-sphere><a-text value="D\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -50"></a-text></a-entity>
-      <a-entity id="seg-E" position="0.03 0.05 0.02" class="interactive-key seg-key" data-char="E"><a-sphere radius="0.022" color="#10b981"></a-sphere><a-text value="E\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -50"></a-text></a-entity>
-      <a-entity id="seg-F" position="-0.03 0.04 0.02" class="interactive-key seg-key" data-char="F"><a-sphere radius="0.022" color="#14b8a6"></a-sphere><a-text value="F\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -50"></a-text></a-entity>
+      <!-- SECOND ROW: Middle Finger -> D (Tip), E (Mid), F (Base) -->
+      <a-entity id="seg-D" position="0.06 0.12 0.02" class="interactive-key seg-key" data-char="D" rotation="">
+        <a-sphere radius="0.022" color="#22c55e" material="" geometry="" class="interactive-key"></a-sphere>
+        <a-text value="D\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: D"></a-text>
+      </a-entity>
+      <a-entity id="seg-E" position="0.06 0.05 0.02" class="interactive-key seg-key" data-char="E" rotation="">
+        <a-sphere radius="0.022" color="#10b981" material="" geometry="" class="interactive-key"></a-sphere>
+        <a-text value="E\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: E"></a-text>
+      </a-entity>
+      <a-entity id="seg-F" position="0.06 -0.02 0.02" class="interactive-key seg-key" data-char="F" rotation="">
+        <a-sphere radius="0.022" color="#14b8a6" material="" geometry="" position="" class="interactive-key"></a-sphere>
+        <a-text value="F\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: F"></a-text>
+      </a-entity>
 
-      <a-entity id="seg-G" position="0.08 0.0 0.02" class="interactive-key seg-key" data-char="G"><a-sphere radius="0.022" color="#06b6d4"></a-sphere><a-text value="G\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -50"></a-text></a-entity>
-      <a-entity id="seg-H" position="0.02 -0.01 0.02" class="interactive-key seg-key" data-char="H"><a-sphere radius="0.022" color="#3b82f6"></a-sphere><a-text value="H\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -50"></a-text></a-entity>
-      <a-entity id="seg-I" position="-0.04 -0.02 0.02" class="interactive-key seg-key" data-char="I"><a-sphere radius="0.022" color="#6366f1"></a-sphere><a-text value="I\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -50"></a-text></a-entity>
+      <!-- THIRD ROW: Ring Finger -> G (Tip), H (Mid), I (Base) -->
+      <a-entity id="seg-G" position="0 0.1 0.02" class="interactive-key seg-key" data-char="G" rotation="">
+        <a-sphere radius="0.022" color="#06b6d4" material="" geometry="" class="interactive-key"></a-sphere>
+        <a-text value="G\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: G"></a-text>
+      </a-entity>
+      <a-entity id="seg-H" position="0 0.03 0.02" class="interactive-key seg-key" data-char="H" rotation="">
+        <a-sphere radius="0.022" color="#3b82f6" material="" geometry="" class="interactive-key"></a-sphere>
+        <a-text value="H\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: H"></a-text>
+      </a-entity>
+      <a-entity id="seg-I" position="0 -0.04 0.02" class="interactive-key seg-key" data-char="I" rotation="">
+        <a-sphere radius="0.022" color="#6366f1" material="" geometry="" class="interactive-key"></a-sphere>
+        <a-text value="I\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: I"></a-text>
+      </a-entity>
 
-      <a-entity id="seg-J" position="0.06 -0.06 0.02" class="interactive-key seg-key" data-char="J"><a-sphere radius="0.022" color="#8b5cf6"></a-sphere><a-text value="J\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -50"></a-text></a-entity>
-      <a-entity id="seg-K" position="0.0 -0.07 0.02" class="interactive-key seg-key" data-char="K"><a-sphere radius="0.022" color="#a855f7"></a-sphere><a-text value="K\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -50"></a-text></a-entity>
-      <a-entity id="seg-L" position="-0.06 -0.08 0.02" class="interactive-key seg-key" data-char="L"><a-sphere radius="0.022" color="#ec4899"></a-sphere><a-text value="L\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -50"></a-text></a-entity>
+      <!-- BOTTOM ROW: Little Finger -> J (Tip), K (Mid), L (Base) -->
+      <a-entity id="seg-J" position="-0.06 0.07 0.02" class="interactive-key seg-key" data-char="J" rotation="">
+        <a-sphere radius="0.022" color="#8b5cf6" material="" geometry="" class="interactive-key"></a-sphere>
+        <a-text value="J\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: J"></a-text>
+      </a-entity>
+      <a-entity id="seg-K" position="-0.06 0.01 0.02" class="interactive-key seg-key" data-char="K" rotation="">
+        <a-sphere radius="0.022" color="#a855f7" material="" geometry="" class="interactive-key"></a-sphere>
+        <a-text value="K\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: K"></a-text>
+      </a-entity>
+      <a-entity id="seg-L" position="-0.06 -0.05 0.02" class="interactive-key seg-key" data-char="L" rotation="0 0.01 0">
+        <a-sphere radius="0.022" color="#ec4899" material="" geometry="" class="interactive-key"></a-sphere>
+        <a-text value="L\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: L"></a-text>
+      </a-entity>
+
+      <!-- Thumb Tip Actuator (Positioned at top for sideways palm orientation) -->
+      <a-entity id="thumb-actuator" position="0.2 -0.03 0.03">
+        <a-sphere radius="0.02" color="#f43f5e" material="" geometry=""></a-sphere>
+        <a-text value="Thumb" align="center" color="#f43f5e" width="0.7" position="0 -0.03 0" rotation="0 0 -90" text=""></a-text>
+      </a-entity>
     </a-entity>
 
     <!-- Camera Rig with Gaze 3s & WebXR Controllers -->
     <a-entity id="rig" position="0 1.6 0">
       <a-camera id="camera" look-controls="enabled: true">
-        <!-- 3-Second Gaze Fuse Reticle Ring (A-Frame 1.x working animation components) -->
         <a-entity position="0 0 -1"
                   geometry="primitive: ring; radiusInner: 0.008; radiusOuter: 0.015"
                   material="color: #818cf8; shader: flat"
                   cursor="maxDistance: 30; fuse: true; fuseTimeout: 3000"
-                  raycaster="objects: .interactive-key, .clickable"
+                  raycaster="objects: .interactive-key, a-sphere, a-box, .clickable"
                   animation__click="property: scale; from: 0.2 0.2 0.2; to: 1 1 1; startEvents: click; dur: 150; easing: easeInQuad"
                   animation__fusing="property: scale; from: 1 1 1; to: 0.15 0.15 0.15; startEvents: fusing; dur: 3000; easing: easeInQuad">
         </a-entity>
@@ -154,7 +202,9 @@
 
   <script>
     const C = window.APP_CONFIG || {
-      screen: { position: { x: 0, y: 2.1, z: -1.6 } },
+      screen: { position: { x: 0, y: 4.0, z: -1.6 } },
+      qwerty: { position: { x: 0, y: 3.45, z: -1.45 } },
+      handRig: { defaultPosition: { x: 1.1, y: 4.0, z: -1.6 } },
       gaze: { timeoutMs: 3000 },
       audio: { frequencyHz: 587.33, durationSec: 0.12, volume: 0.15 }
     };
@@ -216,6 +266,7 @@
           box.setAttribute('height', '0.12');
           box.setAttribute('depth', '0.03');
           box.setAttribute('color', '#1e293b');
+          box.setAttribute('class', 'interactive-key');
           keyEl.appendChild(box);
 
           const text = document.createElement('a-text');

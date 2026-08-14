@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Google Cardboard Hand-Tracking 12-Button Keyboard</title>
+  <title>Cardboard & PC Mixed Reality 12-Button Finger Keyboard</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-  <!-- MediaPipe Tasks Vision -->
+  <!-- MediaPipe Tasks Vision Bundle -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/vision_bundle.js" crossorigin="anonymous"></script>
   <style>
     body {
       margin: 0;
-      background: #0f172a;
+      background: #090d16;
       color: #f8fafc;
       font-family: system-ui, -apple-system, sans-serif;
       overflow: hidden;
@@ -21,8 +21,8 @@
       left: 50%;
       transform: translateX(-50%);
       z-index: 1000;
-      background: rgba(15, 23, 42, 0.9);
-      padding: 10px 20px;
+      background: rgba(15, 23, 42, 0.88);
+      padding: 10px 18px;
       border-radius: 12px;
       border: 1px solid rgba(255, 255, 255, 0.2);
       display: flex;
@@ -30,198 +30,331 @@
       align-items: center;
       flex-wrap: wrap;
       justify-content: center;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.6);
     }
     button {
       background: #0284c7;
       color: white;
       border: none;
-      padding: 8px 14px;
+      padding: 7px 13px;
       border-radius: 6px;
       font-weight: 600;
+      font-size: 0.85rem;
       cursor: pointer;
       transition: background 0.2s;
     }
     button:hover { background: #0369a1; }
     #status {
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       color: #38bdf8;
-      margin-left: 10px;
     }
     #typed-display {
       position: fixed;
-      bottom: 20px;
+      bottom: 15px;
       left: 50%;
       transform: translateX(-50%);
       z-index: 1000;
-      background: rgba(30, 41, 59, 0.95);
-      padding: 12px 24px;
+      background: rgba(15, 23, 42, 0.92);
+      padding: 10px 24px;
       border-radius: 10px;
       border: 1px solid #38bdf8;
-      font-size: 1.2rem;
+      font-size: 1.15rem;
       letter-spacing: 1px;
-      min-width: 300px;
+      min-width: 320px;
       text-align: center;
-      box-shadow: 0 4px 15px rgba(56, 189, 248, 0.2);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 15px rgba(56, 189, 248, 0.25);
     }
-    #webcam {
+    /* AR.js style webcam overlay element */
+    #passthrough-video {
       position: fixed;
-      bottom: 10px;
-      right: 10px;
-      width: 160px;
-      height: 120px;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
       object-fit: cover;
-      border-radius: 8px;
-      border: 2px solid #38bdf8;
-      z-index: 999;
-      transform: scaleX(-1);
+      z-index: -1;
+      display: block;
     }
   </style>
 </head>
 <body>
+  <!-- Live camera video stream for AR.js style webcam Passthrough -->
+  <video id="passthrough-video" autoplay playsinline muted></video>
+
+  <!-- Top 2D Control Bar Overlay -->
   <div id="ui-overlay">
-    <button onclick="toggleCamera()">Toggle Camera (Rear/Front)</button>
-    <button onclick="toggleMode()">Mode: <span id="mode-label">Direct A-L</span></button>
+    <button onclick="togglePassthrough()">MR Passthrough: <span id="passthrough-label">ON</span></button>
+    <button onclick="toggleCamera()">Camera: <span id="cam-label">Rear</span></button>
     <button onclick="clearText()">Clear</button>
-    <button onclick="window.location.href='index.html'">Back to Menu</button>
-    <span id="status">Initializing Hand Tracking...</span>
+    <button onclick="window.location.href='index.html'">Menu</button>
+    <span id="status">Initializing MediaPipe Hand Tracking & Gaze 3s...</span>
   </div>
 
+  <!-- Bottom 2D Display Overlay -->
   <div id="typed-display">Output: <span id="text-output" style="color: #38bdf8; font-weight: bold;"></span></div>
 
-  <video id="webcam" autoplay playsinline></video>
-
-  <a-scene background="color: #050b14">
+  <!-- 3D WebVR Scene -->
+  <a-scene background="transparent: true" renderer="alpha: true">
     <a-assets>
-      <mixin id="key-sphere" geometry="primitive: sphere; radius: 0.025" material="shader: flat; color: #38bdf8; opacity: 0.8"></mixin>
+      <mixin id="key-btn" geometry="primitive: box; width: 0.12; height: 0.12; depth: 0.03" material="shader: flat; color: #1e293b"></mixin>
+      <mixin id="seg-btn" geometry="primitive: sphere; radius: 0.025" material="shader: flat; color: #38bdf8; opacity: 0.9"></mixin>
     </a-assets>
 
-    <!-- Environment -->
+    <!-- Lighting -->
     <a-entity light="type: ambient; color: #ffffff; intensity: 0.9"></a-entity>
-    <a-entity light="type: directional; color: #ffffff; intensity: 0.5" position="1 3 2"></a-entity>
+    <a-entity light="type: directional; color: #38bdf8; intensity: 0.6" position="1 3 2"></a-entity>
 
-    <!-- Floating Output & Guide in VR -->
-    <a-entity position="0 1.6 -1.8">
-      <a-plane width="1.6" height="0.6" color="#1e293b" opacity="0.85" position="0 0.3 0"></a-plane>
-      <a-text id="vr-text" value="Output: " align="center" color="#38bdf8" width="3.2" position="0 0.3 0.02" font="dejavu"></a-text>
+    <!-- 1. Floating Screen Display (Output Display & Actions) -->
+    <a-entity id="floating-screen" position="0 1.8 -1.5">
+      <a-plane width="1.8" height="0.5" color="#0f172a" opacity="0.88" material="shader: flat"></a-plane>
+      <a-box width="1.82" height="0.52" depth="0.02" color="#38bdf8" opacity="0.3" position="0 0 -0.01"></a-box>
+      <a-text id="vr-text-output" value="Output: " align="center" color="#38bdf8" width="3.4" position="0 0.1 0.02" font="dejavu"></a-text>
 
-      <a-text value="Index: A(Tip) B(Mid) C(Base) | Mid: D(Tip) E(Mid) F(Base)" align="center" color="#94a3b8" width="2.5" position="0 -0.1 0.02" font="dejavu" scale="0.7 0.7 0.7"></a-text>
-      <a-text value="Ring: G(Tip) H(Mid) I(Base) | Little: J(Tip) K(Mid) L(Base)" align="center" color="#94a3b8" width="2.5" position="0 -0.2 0.02" font="dejavu" scale="0.7 0.7 0.7"></a-text>
+      <!-- Action Buttons under Floating Screen -->
+      <a-entity position="-0.4 -0.15 0.03" class="interactive-key" data-char="SPACE" onclick="typeChar(' ')">
+        <a-box width="0.3" height="0.1" depth="0.03" color="#0ea5e9"></a-box>
+        <a-text value="SPACE" align="center" color="white" width="1.2" position="0 0 0.02"></a-text>
+      </a-entity>
+      <a-entity position="0 -0.15 0.03" class="interactive-key" data-char="BACKSPACE" onclick="handleBackspace()">
+        <a-box width="0.3" height="0.1" depth="0.03" color="#f59e0b"></a-box>
+        <a-text value="BACK" align="center" color="white" width="1.2" position="0 0 0.02"></a-text>
+      </a-entity>
+      <a-entity position="0.4 -0.15 0.03" class="interactive-key" data-char="CLEAR" onclick="clearText()">
+        <a-box width="0.3" height="0.1" depth="0.03" color="#ef4444"></a-box>
+        <a-text value="CLEAR" align="center" color="white" width="1.2" position="0 0 0.02"></a-text>
+      </a-entity>
     </a-entity>
 
-    <!-- 12 Virtual Button 3D Meshes (Attached near hand or floating for reference) -->
-    <a-entity id="button-entities">
-      <!-- Index Fingers -->
-      <a-entity id="btn-A" position="-0.1 1.2 -1"><a-sphere radius="0.02" color="#ef4444"></a-sphere><a-text value="A" align="center" position="0 0.03 0" color="white" width="1"></a-text></a-entity>
-      <a-entity id="btn-B" position="-0.08 1.15 -1"><a-sphere radius="0.02" color="#f97316"></a-sphere><a-text value="B" align="center" position="0 0.03 0" color="white" width="1"></a-text></a-entity>
-      <a-entity id="btn-C" position="-0.06 1.1 -1"><a-sphere radius="0.02" color="#facc15"></a-sphere><a-text value="C" align="center" position="0 0.03 0" color="white" width="1"></a-text></a-entity>
-      <!-- Middle Fingers -->
-      <a-entity id="btn-D" position="-0.03 1.2 -1"><a-sphere radius="0.02" color="#22c55e"></a-sphere><a-text value="D" align="center" position="0 0.03 0" color="white" width="1"></a-text></a-entity>
-      <a-entity id="btn-E" position="-0.02 1.15 -1"><a-sphere radius="0.02" color="#10b981"></a-sphere><a-text value="E" align="center" position="0 0.03 0" color="white" width="1"></a-text></a-entity>
-      <a-entity id="btn-F" position="-0.01 1.1 -1"><a-sphere radius="0.02" color="#14b8a6"></a-sphere><a-text value="F" align="center" position="0 0.03 0" color="white" width="1"></a-text></a-entity>
-      <!-- Ring Fingers -->
-      <a-entity id="btn-G" position="0.02 1.2 -1"><a-sphere radius="0.02" color="#06b6d4"></a-sphere><a-text value="G" align="center" position="0 0.03 0" color="white" width="1"></a-text></a-entity>
-      <a-entity id="btn-H" position="0.03 1.15 -1"><a-sphere radius="0.02" color="#3b82f6"></a-sphere><a-text value="H" align="center" position="0 0.03 0" color="white" width="1"></a-text></a-entity>
-      <a-entity id="btn-I" position="0.04 1.1 -1"><a-sphere radius="0.02" color="#6366f1"></a-sphere><a-text value="I" align="center" position="0 0.03 0" color="white" width="1"></a-text></a-entity>
-      <!-- Little Fingers -->
-      <a-entity id="btn-J" position="0.07 1.2 -1"><a-sphere radius="0.02" color="#8b5cf6"></a-sphere><a-text value="J" align="center" position="0 0.03 0" color="white" width="1"></a-text></a-entity>
-      <a-entity id="btn-K" position="0.08 1.15 -1"><a-sphere radius="0.02" color="#a855f7"></a-sphere><a-text value="K" align="center" position="0 0.03 0" color="white" width="1"></a-text></a-entity>
-      <a-entity id="btn-L" position="0.09 1.1 -1"><a-sphere radius="0.02" color="#ec4899"></a-sphere><a-text value="L" align="center" position="0 0.03 0" color="white" width="1"></a-text></a-entity>
+    <!-- 2. Synchronized 3D QWERTY Keyboard (Below Floating Screen) -->
+    <a-entity id="qwerty-keyboard" position="0 1.25 -1.45" rotation="-15 0 0">
+      <!-- QWERTY Keys Container -->
+      <a-entity id="qwerty-keys-container"></a-entity>
     </a-entity>
 
-    <!-- Cardboard Camera Rig -->
+    <!-- 3. Floating Virtual Hand & 12 Finger Segment Buttons (Default in front of face) -->
+    <a-entity id="virtual-hand-rig" position="0 1.25 -0.85">
+      <!-- Palm / Wrist Reference Line -->
+      <a-entity id="hand-mesh-reference">
+        <a-cylinder position="0 -0.12 0" radius="0.01" height="0.15" color="#334155" opacity="0.6"></a-cylinder>
+        <a-box position="0 -0.05 0" width="0.16" height="0.12" depth="0.02" color="#1e293b" opacity="0.6"></a-box>
+        <a-text value="RIGHT HAND SEGMENTS (A-L)" align="center" color="#94a3b8" width="1.2" position="0 -0.15 0.02"></a-text>
+      </a-entity>
+
+      <!-- 12 Finger Segment Buttons (A through L) -->
+      <!-- Index Finger: A(Tip), B(Mid), C(Base) -->
+      <a-entity id="seg-A" position="-0.08 0.1 0" class="interactive-key seg-key" data-char="A">
+        <a-sphere radius="0.022" color="#ef4444"></a-sphere>
+        <a-text value="A\nTip" align="center" color="white" width="0.8" position="0 0.03 0.02"></a-text>
+      </a-entity>
+      <a-entity id="seg-B" position="-0.08 0.04 0" class="interactive-key seg-key" data-char="B">
+        <a-sphere radius="0.022" color="#f97316"></a-sphere>
+        <a-text value="B\nMid" align="center" color="white" width="0.8" position="0 0.03 0.02"></a-text>
+      </a-entity>
+      <a-entity id="seg-C" position="-0.08 -0.02 0" class="interactive-key seg-key" data-char="C">
+        <a-sphere radius="0.022" color="#facc15"></a-sphere>
+        <a-text value="C\nBase" align="center" color="white" width="0.8" position="0 0.03 0.02"></a-text>
+      </a-entity>
+
+      <!-- Middle Finger: D(Tip), E(Mid), F(Base) -->
+      <a-entity id="seg-D" position="-0.02 0.12 0" class="interactive-key seg-key" data-char="D">
+        <a-sphere radius="0.022" color="#22c55e"></a-sphere>
+        <a-text value="D\nTip" align="center" color="white" width="0.8" position="0 0.03 0.02"></a-text>
+      </a-entity>
+      <a-entity id="seg-E" position="-0.02 0.05 0" class="interactive-key seg-key" data-char="E">
+        <a-sphere radius="0.022" color="#10b981"></a-sphere>
+        <a-text value="E\nMid" align="center" color="white" width="0.8" position="0 0.03 0.02"></a-text>
+      </a-entity>
+      <a-entity id="seg-F" position="-0.02 -0.02 0" class="interactive-key seg-key" data-char="F">
+        <a-sphere radius="0.022" color="#14b8a6"></a-sphere>
+        <a-text value="F\nBase" align="center" color="white" width="0.8" position="0 0.03 0.02"></a-text>
+      </a-entity>
+
+      <!-- Ring Finger: G(Tip), H(Mid), I(Base) -->
+      <a-entity id="seg-G" position="0.04 0.1 0" class="interactive-key seg-key" data-char="G">
+        <a-sphere radius="0.022" color="#06b6d4"></a-sphere>
+        <a-text value="G\nTip" align="center" color="white" width="0.8" position="0 0.03 0.02"></a-text>
+      </a-entity>
+      <a-entity id="seg-H" position="0.04 0.04 0" class="interactive-key seg-key" data-char="H">
+        <a-sphere radius="0.022" color="#3b82f6"></a-sphere>
+        <a-text value="H\nMid" align="center" color="white" width="0.8" position="0 0.03 0.02"></a-text>
+      </a-entity>
+      <a-entity id="seg-I" position="0.04 -0.02 0" class="interactive-key seg-key" data-char="I">
+        <a-sphere radius="0.022" color="#6366f1"></a-sphere>
+        <a-text value="I\nBase" align="center" color="white" width="0.8" position="0 0.03 0.02"></a-text>
+      </a-entity>
+
+      <!-- Little Finger: J(Tip), K(Mid), L(Base) -->
+      <a-entity id="seg-J" position="0.1 0.07 0" class="interactive-key seg-key" data-char="J">
+        <a-sphere radius="0.022" color="#8b5cf6"></a-sphere>
+        <a-text value="J\nTip" align="center" color="white" width="0.8" position="0 0.03 0.02"></a-text>
+      </a-entity>
+      <a-entity id="seg-K" position="0.1 0.02 0" class="interactive-key seg-key" data-char="K">
+        <a-sphere radius="0.022" color="#a855f7"></a-sphere>
+        <a-text value="K\nMid" align="center" color="white" width="0.8" position="0 0.03 0.02"></a-text>
+      </a-entity>
+      <a-entity id="seg-L" position="0.1 -0.03 0" class="interactive-key seg-key" data-char="L">
+        <a-sphere radius="0.022" color="#ec4899"></a-sphere>
+        <a-text value="L\nBase" align="center" color="white" width="0.8" position="0 0.03 0.02"></a-text>
+      </a-entity>
+
+      <!-- Thumb Tip Actuator indicator -->
+      <a-entity id="thumb-actuator" position="-0.14 -0.04 0">
+        <a-sphere radius="0.018" color="#f43f5e"></a-sphere>
+        <a-text value="Thumb" align="center" color="#f43f5e" width="0.7" position="0 -0.03 0"></a-text>
+      </a-entity>
+    </a-entity>
+
+    <!-- Camera Rig with 3-Second Gaze Reticle Timer -->
     <a-entity id="rig" position="0 1.6 0">
-      <a-camera id="camera" look-controls="enabled: true"></a-camera>
+      <a-camera id="camera" look-controls="enabled: true">
+        <!-- 3-Second Gaze Fuse Cursor for Cardboard & PC -->
+        <a-cursor id="gaze-cursor"
+                  fuse="true"
+                  fuse-timeout="3000"
+                  raycaster="objects: .interactive-key"
+                  position="0 0 -1"
+                  geometry="primitive: ring; radiusInner: 0.008; radiusOuter: 0.014"
+                  material="color: #38bdf8; shader: flat">
+          <!-- Reticle shrinking animation during 3s gaze -->
+          <a-animation begin="fusing" easing="ease-in" attribute="scale" dur="3000" fill="backwards" from="1 1 1" to="0.15 0.15 0.15"></a-animation>
+        </a-cursor>
+      </a-camera>
     </a-entity>
   </a-scene>
 
   <script>
-    let handLandmarker = undefined;
-    let webcamRunning = false;
-    let useRearCamera = true;
-    let currentMode = 'direct'; // 'direct' (A-L) or 'multitap' (A-Z)
     let typedText = '';
+    let useRearCamera = true;
+    let passthroughActive = true;
+    let handLandmarker = undefined;
+    let isTrackingHand = false;
+    let audioCtx = null;
     let lastTouchTime = {};
-    const TOUCH_COOLDOWN = 600; // ms debounce
+    const TOUCH_COOLDOWN = 600; // ms
 
-    const keysMap = [
-      { id: 'btn-A', name: 'A', landmarkIndex: 8, finger: 'Index Tip' },
-      { id: 'btn-B', name: 'B', landmarkIndex: 7, finger: 'Index Mid' },
-      { id: 'btn-C', name: 'C', landmarkIndex: 6, finger: 'Index Base' },
-      { id: 'btn-D', name: 'D', landmarkIndex: 12, finger: 'Mid Tip' },
-      { id: 'btn-E', name: 'E', landmarkIndex: 11, finger: 'Mid Mid' },
-      { id: 'btn-F', name: 'F', landmarkIndex: 10, finger: 'Mid Base' },
-      { id: 'btn-G', name: 'G', landmarkIndex: 16, finger: 'Ring Tip' },
-      { id: 'btn-H', name: 'H', landmarkIndex: 15, finger: 'Ring Mid' },
-      { id: 'btn-I', name: 'I', landmarkIndex: 14, finger: 'Ring Base' },
-      { id: 'btn-J', name: 'J', landmarkIndex: 20, finger: 'Little Tip' },
-      { id: 'btn-K', name: 'K', landmarkIndex: 19, finger: 'Little Mid' },
-      { id: 'btn-L', name: 'L', landmarkIndex: 18, finger: 'Little Base' }
+    // 12 Finger Segment Keys Definition
+    const segmentKeysMap = [
+      { id: 'seg-A', char: 'A', landmark: 8 },  // Index Tip
+      { id: 'seg-B', char: 'B', landmark: 7 },  // Index Mid
+      { id: 'seg-C', char: 'C', landmark: 6 },  // Index Base
+      { id: 'seg-D', char: 'D', landmark: 12 }, // Mid Tip
+      { id: 'seg-E', char: 'E', landmark: 11 }, // Mid Mid
+      { id: 'seg-F', char: 'F', landmark: 10 }, // Mid Base
+      { id: 'seg-G', char: 'G', landmark: 16 }, // Ring Tip
+      { id: 'seg-H', char: 'H', landmark: 15 }, // Ring Mid
+      { id: 'seg-I', char: 'I', landmark: 14 }, // Ring Base
+      { id: 'seg-J', char: 'J', landmark: 20 }, // Little Tip
+      { id: 'seg-K', char: 'K', landmark: 19 }, // Little Mid
+      { id: 'seg-L', char: 'L', landmark: 18 }  // Little Base
     ];
 
-    const multitapMap = {
-      'A': 'A', 'B': 'B', 'C': 'C', 'D': 'D', 'E': 'E', 'F': 'F',
-      'G': 'G', 'H': 'H', 'I': 'I', 'J': 'J', 'K': 'K', 'L': 'L'
-    };
+    // QWERTY Layout Rows for 3D Keyboard
+    const qwertyRows = [
+      ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+      ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
+      ['Z', 'X', 'C', 'V', 'B', 'N', 'M']
+    ];
 
-    async function initMediaPipe() {
-      const { HandLandmarker, FilesetResolver } = window.vision;
-      const vision = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
-      );
-      handLandmarker = await HandLandmarker.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`,
-          delegate: "GPU"
-        },
-        runningMode: "VIDEO",
-        numHands: 1
-      });
-      document.getElementById('status').innerText = "Hand Tracking Ready. Show Right Hand!";
-      startCamera();
-    }
-
-    async function startCamera() {
-      const video = document.getElementById('webcam');
-      if (window.stream) {
-        window.stream.getTracks().forEach(track => track.stop());
-      }
-      const constraints = {
-        video: {
-          facingMode: useRearCamera ? { exact: "environment" } : "user",
-          width: { ideal: 640 },
-          height: { ideal: 480 }
-        }
-      };
+    // Sound Synthesizer via Web Audio API
+    function playBeepSound() {
       try {
-        window.stream = await navigator.mediaDevices.getUserMedia(constraints);
-        video.srcObject = window.stream;
-        video.addEventListener('loadeddata', predictWebcam);
-      } catch (err) {
-        console.warn("Exact environment camera failed, falling back to any camera:", err);
-        try {
-          window.stream = await navigator.mediaDevices.getUserMedia({ video: true });
-          video.srcObject = window.stream;
-          video.addEventListener('loadeddata', predictWebcam);
-        } catch (e) {
-          document.getElementById('status').innerText = "Camera Error: " + e.message;
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5 note
+        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.12);
+      } catch (e) {
+        console.warn("Audio Context error:", e);
+      }
+    }
+
+    // Build 3D QWERTY Keyboard dynamically
+    function buildQwertyKeyboard() {
+      const container = document.getElementById('qwerty-keys-container');
+      if (!container) return;
+      container.innerHTML = '';
+
+      qwertyRows.forEach((row, rowIndex) => {
+        const yPos = -rowIndex * 0.15;
+        const rowWidth = row.length * 0.14;
+        const startX = -rowWidth / 2 + 0.07;
+
+        row.forEach((char, colIndex) => {
+          const xPos = startX + colIndex * 0.14;
+          const keyEl = document.createElement('a-entity');
+          keyEl.setAttribute('id', `qwerty-key-${char}`);
+          keyEl.setAttribute('class', 'interactive-key qwerty-key');
+          keyEl.setAttribute('position', `${xPos} ${yPos} 0`);
+          keyEl.setAttribute('data-char', char);
+
+          // Box Mesh
+          const box = document.createElement('a-box');
+          box.setAttribute('width', '0.12');
+          box.setAttribute('height', '0.12');
+          box.setAttribute('depth', '0.03');
+          box.setAttribute('color', '#1e293b');
+          keyEl.appendChild(box);
+
+          // Text Label
+          const text = document.createElement('a-text');
+          text.setAttribute('value', char);
+          text.setAttribute('align', 'center');
+          text.setAttribute('color', '#f8fafc');
+          text.setAttribute('width', '1.8');
+          text.setAttribute('position', '0 0 0.02');
+          keyEl.appendChild(text);
+
+          keyEl.addEventListener('click', () => typeChar(char));
+          container.appendChild(keyEl);
+        });
+      });
+    }
+
+    // Highlight QWERTY key when corresponding letter typed
+    function highlightQwertyKey(char) {
+      const keyEl = document.getElementById(`qwerty-key-${char}`);
+      if (keyEl) {
+        const box = keyEl.querySelector('a-box');
+        if (box) {
+          const originalColor = box.getAttribute('color');
+          box.setAttribute('color', '#38bdf8'); // Glowing Cyan
+          box.setAttribute('scale', '1.1 1.1 1.1');
+          setTimeout(() => {
+            box.setAttribute('color', originalColor);
+            box.setAttribute('scale', '1 1 1');
+          }, 300);
         }
       }
     }
 
-    function toggleCamera() {
-      useRearCamera = !useRearCamera;
-      document.getElementById('status').innerText = useRearCamera ? "Switching to Rear Camera..." : "Switching to Front Camera...";
-      startCamera();
+    // Handle Character Input
+    function typeChar(char) {
+      typedText += char;
+      updateDisplay();
+      playBeepSound();
+      if (char !== ' ') {
+        highlightQwertyKey(char.toUpperCase());
+      }
     }
 
-    function toggleMode() {
-      if (currentMode === 'direct') {
-        currentMode = 'multitap';
-        document.getElementById('mode-label').innerText = 'Multi-Tap A-Z';
-      } else {
-        currentMode = 'direct';
-        document.getElementById('mode-label').innerText = 'Direct A-L';
+    function handleBackspace() {
+      if (typedText.length > 0) {
+        typedText = typedText.slice(0, -1);
+        updateDisplay();
+        playBeepSound();
       }
     }
 
@@ -232,13 +365,78 @@
 
     function updateDisplay() {
       document.getElementById('text-output').innerText = typedText;
-      const vrText = document.getElementById('vr-text');
+      const vrText = document.getElementById('vr-text-output');
       if (vrText) vrText.setAttribute('value', 'Output: ' + typedText);
+    }
+
+    // Initialize Camera Stream for AR.js style webcam Passthrough
+    async function initCamera() {
+      const video = document.getElementById('passthrough-video');
+      if (window.stream) {
+        window.stream.getTracks().forEach(track => track.stop());
+      }
+      const constraints = {
+        video: {
+          facingMode: useRearCamera ? { exact: "environment" } : "user",
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      };
+      try {
+        window.stream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = window.stream;
+        video.addEventListener('loadeddata', predictWebcam);
+      } catch (err) {
+        console.warn("Exact environment camera failed, using default camera:", err);
+        try {
+          window.stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          video.srcObject = window.stream;
+          video.addEventListener('loadeddata', predictWebcam);
+        } catch (e) {
+          document.getElementById('status').innerText = "Camera Access Blocked / Unavailable";
+        }
+      }
+    }
+
+    function togglePassthrough() {
+      passthroughActive = !passthroughActive;
+      const video = document.getElementById('passthrough-video');
+      video.style.display = passthroughActive ? 'block' : 'none';
+      document.getElementById('passthrough-label').innerText = passthroughActive ? 'ON' : 'OFF';
+      document.getElementById('status').innerText = passthroughActive ? "MR Passthrough Active (Live Webcam)" : "Virtual VR Room Active";
+    }
+
+    function toggleCamera() {
+      useRearCamera = !useRearCamera;
+      document.getElementById('cam-label').innerText = useRearCamera ? 'Rear' : 'Front';
+      initCamera();
+    }
+
+    // Initialize MediaPipe Tasks Vision HandLandmarker
+    async function initMediaPipe() {
+      try {
+        const { HandLandmarker, FilesetResolver } = window.vision;
+        const vision = await FilesetResolver.forVisionTasks(
+          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
+        );
+        handLandmarker = await HandLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`,
+            delegate: "GPU"
+          },
+          runningMode: "VIDEO",
+          numHands: 1
+        });
+        document.getElementById('status').innerText = "Hand Tracking Ready! Show Right Hand or use Gaze 3s.";
+      } catch (e) {
+        console.warn("MediaPipe init error:", e);
+        document.getElementById('status').innerText = "Gaze 3s Ready! (Show Right Hand or gaze at keys)";
+      }
     }
 
     let lastVideoTime = -1;
     async function predictWebcam() {
-      const video = document.getElementById('webcam');
+      const video = document.getElementById('passthrough-video');
       if (!handLandmarker || video.paused || video.ended) {
         requestAnimationFrame(predictWebcam);
         return;
@@ -250,63 +448,93 @@
         const results = handLandmarker.detectForVideo(video, startTimeMs);
 
         if (results.landmarks && results.landmarks.length > 0) {
-          // Assuming right hand or first detected hand
+          isTrackingHand = true;
           const landmarks = results.landmarks[0];
-          
-          // Thumb tip is landmark 4
           const thumbTip = landmarks[4];
 
-          // Check proximity between thumb tip and each key landmark
+          // Move Virtual Hand Rig to tracked position
+          const wrist = landmarks[0];
+          const rigEl = document.getElementById('virtual-hand-rig');
+          if (rigEl) {
+            const rx = (wrist.x - 0.5) * -1.2;
+            const ry = (1.0 - wrist.y - 0.5) * 1.2 + 1.25;
+            const rz = (wrist.z - 0.2) * -1.2 - 0.8;
+            rigEl.setAttribute('position', `${rx} ${ry} ${rz}`);
+          }
+
+          // Update Thumb Actuator indicator position
+          const thumbEl = document.getElementById('thumb-actuator');
+          if (thumbEl) {
+            const tx = (thumbTip.x - wrist.x) * -1.2;
+            const ty = (wrist.y - thumbTip.y) * 1.2;
+            thumbEl.setAttribute('position', `${tx} ${ty} 0`);
+          }
+
+          // Update Segment Keys and check Thumb Touch Proximity
           const now = performance.now();
-          keysMap.forEach(key => {
-            const joint = landmarks[key.landmarkIndex];
+          segmentKeysMap.forEach(key => {
+            const joint = landmarks[key.landmark];
             if (joint) {
-              // Update 3D button position in VR relative to camera view
-              const btnEl = document.getElementById(key.id);
-              if (btnEl) {
-                // Map normalized landmark coords (0 to 1) to VR space coordinates
-                const x = (joint.x - 0.5) * -1.2;
-                const y = (1.0 - joint.y - 0.5) * 1.2 + 1.2;
-                const z = (joint.z - 0.2) * -1.5 - 1.0;
-                btnEl.setAttribute('position', `${x} ${y} ${z}`);
+              const segEl = document.getElementById(key.id);
+              if (segEl) {
+                const sx = (joint.x - wrist.x) * -1.2;
+                const sy = (wrist.y - joint.y) * 1.2;
+                segEl.setAttribute('position', `${sx} ${sy} 0`);
               }
 
-              // Calculate Euclidean distance between thumb tip and segment joint
+              // Calculate 3D Euclidean distance from Thumb tip
               const dx = thumbTip.x - joint.x;
               const dy = thumbTip.y - joint.y;
               const dz = thumbTip.z - joint.z;
               const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
 
-              // Touch threshold
-              if (dist < 0.05) {
-                if (!lastTouchTime[key.name] || (now - lastTouchTime[key.name] > TOUCH_COOLDOWN)) {
-                  lastTouchTime[key.name] = now;
-                  handleKeyPress(key.name);
+              if (dist < 0.045) { // 4.5 cm touch threshold
+                if (!lastTouchTime[key.char] || (now - lastTouchTime[key.char] > TOUCH_COOLDOWN)) {
+                  lastTouchTime[key.char] = now;
+                  typeChar(key.char);
                 }
               }
             }
           });
+        } else {
+          // Revert Virtual Hand Rig back to default in front of face
+          if (isTrackingHand) {
+            isTrackingHand = false;
+            const rigEl = document.getElementById('virtual-hand-rig');
+            if (rigEl) {
+              rigEl.setAttribute('position', '0 1.25 -0.85');
+            }
+          }
         }
       }
       requestAnimationFrame(predictWebcam);
     }
 
-    function handleKeyPress(char) {
-      if (currentMode === 'direct') {
-        typedText += char;
-      } else {
-        // Multi-tap or modifier logic
-        typedText += char;
+    // Keyboard event listener for PC testing fallback
+    window.addEventListener('keydown', (e) => {
+      const key = e.key.toUpperCase();
+      if (key >= 'A' && key <= 'Z' && key.length === 1) {
+        typeChar(key);
+      } else if (e.key === ' ') {
+        typeChar(' ');
+      } else if (e.key === 'Backspace') {
+        handleBackspace();
       }
-      updateDisplay();
-      
-      // Flash key color or audio feedback
-      console.log("Typed:", char);
-    }
+    });
 
-    // Start MediaPipe on load
+    // Setup on Page Load
     window.addEventListener('DOMContentLoaded', () => {
+      buildQwertyKeyboard();
+      initCamera();
       setTimeout(initMediaPipe, 1000);
+
+      // Attach click handlers to segment keys
+      segmentKeysMap.forEach(key => {
+        const segEl = document.getElementById(key.id);
+        if (segEl) {
+          segEl.addEventListener('click', () => typeChar(key.char));
+        }
+      });
     });
   </script>
 </body>

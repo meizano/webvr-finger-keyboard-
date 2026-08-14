@@ -212,12 +212,13 @@
       <a-entity id="seg-W" position="0.06 0.01 0.02" class="interactive-key seg-key" data-char="W" rotation="0 0 0"><a-sphere radius="0.022" color="#a855f7" data-original-color="#a855f7" rotation="0 0 0"></a-sphere><a-text value="W\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 0" text="value: W"></a-text></a-entity>
       <a-entity id="seg-X" position="0.06 -0.05 0.02" class="interactive-key seg-key" data-char="X" rotation="0 0 0"><a-sphere radius="0.022" color="#ec4899" data-original-color="#ec4899" rotation="0 0 0"></a-sphere><a-text value="X\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 0" text="value: X"></a-text></a-entity>
 
+      <!-- Left Thumb Tip Actuator -->
       <a-entity id="left-thumb-actuator" position="-0.2 -0.03 0.03" rotation="0 0 0"><a-sphere radius="0.02" color="#f43f5e" data-original-color="#f43f5e" rotation="0 0 0"></a-sphere><a-text value="Thumb" align="center" color="#f43f5e" width="0.7" position="0 -0.03 0" rotation="0 0 0"></a-text></a-entity>
     </a-entity>
 
-    <!-- 5. CAMERA RIG WITH POSITION Y = 0 & ARROW + PAGEUP/PAGEDOWN CONTROLS -->
+    <!-- 5. CAMERA RIG WITH POSITION Y = 0 & FULL TOUCH/ARROW CONTROLS -->
     <a-entity id="rig" position="0 0 0" camera-arrow-controls>
-      <a-camera id="camera" look-controls="enabled: true" wasd-controls="enabled: false">
+      <a-camera id="camera" look-controls="enabled: true; touchEnabled: false" touch-look-controls wasd-controls="enabled: false">
         <a-entity id="gaze-cursor"
                   position="0 0 -1"
                   geometry="primitive: ring; radiusInner: 0.008; radiusOuter: 0.015"
@@ -235,10 +236,48 @@
     </a-entity>
   </a-scene>
 
-  <!-- ES Module Import for MediaPipe Tasks Vision -->
-  <script type="module">
-    import { HandLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0";
+  <script>
+    // Register Touch Look Controls for 2D Android Touch Drag (Up/Down Pitch + Left/Right Yaw)
+    AFRAME.registerComponent('touch-look-controls', {
+      init: function () {
+        this.pitch = 0;
+        this.yaw = 0;
+        this.touchStart = { x: 0, y: 0 };
+        this.isTouching = false;
 
+        window.addEventListener('touchstart', (e) => {
+          if (e.target.tagName === 'BUTTON' || e.target.closest('#ui-overlay')) return;
+          if (e.touches.length === 1) {
+            this.touchStart.x = e.touches[0].pageX;
+            this.touchStart.y = e.touches[0].pageY;
+            this.isTouching = true;
+          }
+        });
+
+        window.addEventListener('touchmove', (e) => {
+          if (this.isTouching && e.touches.length === 1) {
+            const deltaX = e.touches[0].pageX - this.touchStart.x;
+            const deltaY = e.touches[0].pageY - this.touchStart.y;
+            this.touchStart.x = e.touches[0].pageX;
+            this.touchStart.y = e.touches[0].pageY;
+
+            const sensitivity = 0.25;
+            this.yaw -= deltaX * sensitivity;
+            this.pitch -= deltaY * sensitivity;
+
+            // Clamp pitch to [-85, 85] degrees so camera view stays natural
+            this.pitch = Math.max(-85, Math.min(85, this.pitch));
+            this.el.setAttribute('rotation', `${this.pitch} ${this.yaw} 0`);
+          }
+        });
+
+        window.addEventListener('touchend', () => {
+          this.isTouching = false;
+        });
+      }
+    });
+
+    // Register Custom Camera Component for Arrow Keys & PageUp/PageDown
     AFRAME.registerComponent('camera-arrow-controls', {
       init: function () {
         this.speed = 0.08;

@@ -93,10 +93,7 @@
     <a-entity light="type: ambient; color: #ffffff; intensity: 0.9"></a-entity>
     <a-entity light="type: directional; color: #818cf8; intensity: 0.6" position="1 4 2"></a-entity>
 
-    <!-- ================================================================= -->
-    <!-- 1. FLOATING SCREEN DISPLAY WITH 3D SCROLLBAR (Y=4.0, Z=-1.6)      -->
-    <!-- Text area wraps cleanly and includes Up/Down scrollbar controls    -->
-    <!-- ================================================================= -->
+    <!-- 1. FLOATING SCREEN DISPLAY WITH 3D SCROLLBAR (Y=4.0, Z=-1.6) -->
     <a-entity id="floating-screen" position="0 4 -1.6">
       <a-plane width="1.8" height="0.48" color="#0f172a" opacity="0.88" material="shader: flat" position="0 0 -0.05"></a-plane>
       <a-box width="1.82" height="0.5" depth="0.01" color="#818cf8" opacity="0.3" position="0 0 -0.06"></a-box>
@@ -119,82 +116,75 @@
       </a-entity>
     </a-entity>
 
-    <!-- 2. Synchronized 3D QWERTY Keyboard (Y=3.45, Z=-1.45) -->
+    <!-- 2. SYNCHRONIZED 3D QWERTY KEYBOARD (POSITIONED AT Y=3.45, Z=-1.45) -->
     <a-entity id="qwerty-keyboard" position="0 3.45 -1.45" rotation="-15 0 0">
       <a-entity id="qwerty-keys-container"></a-entity>
-      <!-- 3D WPM Badge placed UNDERNEATH the QWERTY keyboard -->
       <a-text id="vr-wpm-output" value="WPM: 0" align="center" color="#10b981" width="2.4" position="0 -0.65 0.02" font="dejavu"></a-text>
+
+      <!-- 3D Menu Button in VR Space -->
+      <a-entity position="0 -0.9 0.02" class="interactive-key" onclick="window.location.href='index.html'">
+        <a-box width="0.6" height="0.14" depth="0.03" color="#6366f1" data-original-color="#6366f1" class="interactive-key"></a-box>
+        <a-text value="MAIN MENU" align="center" color="white" width="1.6" position="0 0 0.02"></a-text>
+      </a-entity>
     </a-entity>
 
-    <!-- 3. Floating Virtual Right Hand Rig (1.1 4 -1.6) -->
-    <a-entity id="virtual-hand-rig" position="1.1 4 -1.6" rotation="0 0 90">
-      <a-entity id="hand-mesh-reference">
+    <!-- 3. RIGHT HAND VIRTUAL RIG (A through L) at 1.1 4 -1.6 -->
+    <a-entity id="virtual-right-hand-rig" position="1.1 4 -1.6" rotation="0 0 90">
+      <a-entity id="right-hand-mesh-reference">
         <a-box position="0.02 0.02 -0.01" width="0.18" height="0.18" depth="0.015" color="#1e293b" opacity="0.65" data-original-color="#1e293b"></a-box>
         <a-cylinder position="-0.08 -0.08 -0.01" rotation="0 0 -45" radius="0.012" height="0.14" color="#334155" opacity="0.65"></a-cylinder>
         <a-text value="RIGHT HAND (A-L)" align="center" color="#94a3b8" width="1.1" position="-0.12 0.02 0.02" rotation="0 0 -90" text="value: R. HAND"></a-text>
       </a-entity>
 
-      <!-- 12 FINGER SEGMENT BUTTONS (A-L) -->
-      <a-entity id="seg-A" position="0.12 0.1 0.02" class="interactive-key seg-key" data-char="A">
-        <a-sphere radius="0.022" color="#ef4444" data-original-color="#ef4444"></a-sphere>
-        <a-text value="A\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: A"></a-text>
-      </a-entity>
-      <a-entity id="seg-B" position="0.12 0.03 0.02" class="interactive-key seg-key" data-char="B">
-        <a-sphere radius="0.022" color="#f97316" data-original-color="#f97316"></a-sphere>
-        <a-text value="B\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: B"></a-text>
-      </a-entity>
-      <a-entity id="seg-C" position="0.12 -0.04 0.02" class="interactive-key seg-key" data-char="C">
-        <a-sphere radius="0.022" color="#facc15" data-original-color="#facc15"></a-sphere>
-        <a-text value="C\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: C"></a-text>
-      </a-entity>
+      <!-- 12 RIGHT FINGER SEGMENT BUTTONS (A-L) -->
+      <a-entity id="seg-A" position="0.12 0.1 0.02" class="interactive-key seg-key" data-char="A"><a-sphere radius="0.022" color="#ef4444" data-original-color="#ef4444"></a-sphere><a-text value="A\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: A"></a-text></a-entity>
+      <a-entity id="seg-B" position="0.12 0.03 0.02" class="interactive-key seg-key" data-char="B"><a-sphere radius="0.022" color="#f97316" data-original-color="#f97316"></a-sphere><a-text value="B\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: B"></a-text></a-entity>
+      <a-entity id="seg-C" position="0.12 -0.04 0.02" class="interactive-key seg-key" data-char="C"><a-sphere radius="0.022" color="#facc15" data-original-color="#facc15"></a-sphere><a-text value="C\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: C"></a-text></a-entity>
 
-      <a-entity id="seg-D" position="0.06 0.12 0.02" class="interactive-key seg-key" data-char="D">
-        <a-sphere radius="0.022" color="#22c55e" data-original-color="#22c55e"></a-sphere>
-        <a-text value="D\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: D"></a-text>
-      </a-entity>
-      <a-entity id="seg-E" position="0.06 0.05 0.02" class="interactive-key seg-key" data-char="E">
-        <a-sphere radius="0.022" color="#10b981" data-original-color="#10b981"></a-sphere>
-        <a-text value="E\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: E"></a-text>
-      </a-entity>
-      <a-entity id="seg-F" position="0.06 -0.02 0.02" class="interactive-key seg-key" data-char="F">
-        <a-sphere radius="0.022" color="#14b8a6" data-original-color="#14b8a6"></a-sphere>
-        <a-text value="F\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: F"></a-text>
-      </a-entity>
+      <a-entity id="seg-D" position="0.06 0.12 0.02" class="interactive-key seg-key" data-char="D"><a-sphere radius="0.022" color="#22c55e" data-original-color="#22c55e"></a-sphere><a-text value="D\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: D"></a-text></a-entity>
+      <a-entity id="seg-E" position="0.06 0.05 0.02" class="interactive-key seg-key" data-char="E"><a-sphere radius="0.022" color="#10b981" data-original-color="#10b981"></a-sphere><a-text value="E\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: E"></a-text></a-entity>
+      <a-entity id="seg-F" position="0.06 -0.02 0.02" class="interactive-key seg-key" data-char="F"><a-sphere radius="0.022" color="#14b8a6" data-original-color="#14b8a6"></a-sphere><a-text value="F\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: F"></a-text></a-entity>
 
-      <a-entity id="seg-G" position="0 0.1 0.02" class="interactive-key seg-key" data-char="G">
-        <a-sphere radius="0.022" color="#06b6d4" data-original-color="#06b6d4"></a-sphere>
-        <a-text value="G\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: G"></a-text>
-      </a-entity>
-      <a-entity id="seg-H" position="0 0.03 0.02" class="interactive-key seg-key" data-char="H">
-        <a-sphere radius="0.022" color="#3b82f6" data-original-color="#3b82f6"></a-sphere>
-        <a-text value="H\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: H"></a-text>
-      </a-entity>
-      <a-entity id="seg-I" position="0 -0.04 0.02" class="interactive-key seg-key" data-char="I">
-        <a-sphere radius="0.022" color="#6366f1" data-original-color="#6366f1"></a-sphere>
-        <a-text value="I\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: I"></a-text>
-      </a-entity>
+      <a-entity id="seg-G" position="0 0.1 0.02" class="interactive-key seg-key" data-char="G"><a-sphere radius="0.022" color="#06b6d4" data-original-color="#06b6d4"></a-sphere><a-text value="G\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: G"></a-text></a-entity>
+      <a-entity id="seg-H" position="0 0.03 0.02" class="interactive-key seg-key" data-char="H"><a-sphere radius="0.022" color="#3b82f6" data-original-color="#3b82f6"></a-sphere><a-text value="H\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: H"></a-text></a-entity>
+      <a-entity id="seg-I" position="0 -0.04 0.02" class="interactive-key seg-key" data-char="I"><a-sphere radius="0.022" color="#6366f1" data-original-color="#6366f1"></a-sphere><a-text value="I\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: I"></a-text></a-entity>
 
-      <a-entity id="seg-J" position="-0.06 0.07 0.02" class="interactive-key seg-key" data-char="J">
-        <a-sphere radius="0.022" color="#8b5cf6" data-original-color="#8b5cf6"></a-sphere>
-        <a-text value="J\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: J"></a-text>
-      </a-entity>
-      <a-entity id="seg-K" position="-0.06 0.01 0.02" class="interactive-key seg-key" data-char="K">
-        <a-sphere radius="0.022" color="#a855f7" data-original-color="#a855f7"></a-sphere>
-        <a-text value="K\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: K"></a-text>
-      </a-entity>
-      <a-entity id="seg-L" position="-0.06 -0.05 0.02" class="interactive-key seg-key" data-char="L">
-        <a-sphere radius="0.022" color="#ec4899" data-original-color="#ec4899"></a-sphere>
-        <a-text value="L\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: L"></a-text>
-      </a-entity>
+      <a-entity id="seg-J" position="-0.06 0.07 0.02" class="interactive-key seg-key" data-char="J"><a-sphere radius="0.022" color="#8b5cf6" data-original-color="#8b5cf6"></a-sphere><a-text value="J\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: J"></a-text></a-entity>
+      <a-entity id="seg-K" position="-0.06 0.01 0.02" class="interactive-key seg-key" data-char="K"><a-sphere radius="0.022" color="#a855f7" data-original-color="#a855f7"></a-sphere><a-text value="K\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: K"></a-text></a-entity>
+      <a-entity id="seg-L" position="-0.06 -0.05 0.02" class="interactive-key seg-key" data-char="L"><a-sphere radius="0.022" color="#ec4899" data-original-color="#ec4899"></a-sphere><a-text value="L\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 -90" text="value: L"></a-text></a-entity>
 
-      <!-- Thumb Tip Actuator -->
-      <a-entity id="thumb-actuator" position="0.2 -0.03 0.03">
-        <a-sphere radius="0.02" color="#f43f5e" data-original-color="#f43f5e"></a-sphere>
-        <a-text value="Thumb" align="center" color="#f43f5e" width="0.7" position="0 -0.03 0" rotation="0 0 -90"></a-text>
-      </a-entity>
+      <a-entity id="right-thumb-actuator" position="0.2 -0.03 0.03"><a-sphere radius="0.02" color="#f43f5e" data-original-color="#f43f5e"></a-sphere><a-text value="Thumb" align="center" color="#f43f5e" width="0.7" position="0 -0.03 0" rotation="0 0 -90"></a-text></a-entity>
     </a-entity>
 
-    <!-- 4. Camera Rig with Arrow + PageUp/PageDown Controls -->
+    <!-- 4. LEFT HAND VIRTUAL RIG (M through X) at -1.1 4 -1.6 -->
+    <a-entity id="virtual-left-hand-rig" position="-1.1 4 -1.6" rotation="0 0 -90">
+      <a-entity id="left-hand-mesh-reference">
+        <a-box position="-0.02 0.02 -0.01" width="0.18" height="0.18" depth="0.015" color="#1e293b" opacity="0.65" data-original-color="#1e293b"></a-box>
+        <a-cylinder position="0.08 -0.08 -0.01" rotation="0 0 45" radius="0.012" height="0.14" color="#334155" opacity="0.65"></a-cylinder>
+        <a-text value="LEFT HAND (M-X)" align="center" color="#a855f7" width="1.1" position="0.12 0.02 0.02" rotation="0 0 90" text="value: L. HAND"></a-text>
+      </a-entity>
+
+      <!-- 12 LEFT FINGER SEGMENT BUTTONS (M-X) -->
+      <a-entity id="seg-M" position="-0.12 0.1 0.02" class="interactive-key seg-key" data-char="M"><a-sphere radius="0.022" color="#ef4444" data-original-color="#ef4444"></a-sphere><a-text value="M\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 90" text="value: M"></a-text></a-entity>
+      <a-entity id="seg-N" position="-0.12 0.03 0.02" class="interactive-key seg-key" data-char="N"><a-sphere radius="0.022" color="#f97316" data-original-color="#f97316"></a-sphere><a-text value="N\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 90" text="value: N"></a-text></a-entity>
+      <a-entity id="seg-O" position="-0.12 -0.04 0.02" class="interactive-key seg-key" data-char="O"><a-sphere radius="0.022" color="#facc15" data-original-color="#facc15"></a-sphere><a-text value="O\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 90" text="value: O"></a-text></a-entity>
+
+      <a-entity id="seg-P" position="-0.06 0.12 0.02" class="interactive-key seg-key" data-char="P"><a-sphere radius="0.022" color="#22c55e" data-original-color="#22c55e"></a-sphere><a-text value="P\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 90" text="value: P"></a-text></a-entity>
+      <a-entity id="seg-Q" position="-0.06 0.05 0.02" class="interactive-key seg-key" data-char="Q"><a-sphere radius="0.022" color="#10b981" data-original-color="#10b981"></a-sphere><a-text value="Q\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 90" text="value: Q"></a-text></a-entity>
+      <a-entity id="seg-R" position="-0.06 -0.02 0.02" class="interactive-key seg-key" data-char="R"><a-sphere radius="0.022" color="#14b8a6" data-original-color="#14b8a6"></a-sphere><a-text value="R\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 90" text="value: R"></a-text></a-entity>
+
+      <a-entity id="seg-S" position="0 0.1 0.02" class="interactive-key seg-key" data-char="S"><a-sphere radius="0.022" color="#06b6d4" data-original-color="#06b6d4"></a-sphere><a-text value="S\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 90" text="value: S"></a-text></a-entity>
+      <a-entity id="seg-T" position="0 0.03 0.02" class="interactive-key seg-key" data-char="T"><a-sphere radius="0.022" color="#3b82f6" data-original-color="#3b82f6"></a-sphere><a-text value="T\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 90" text="value: T"></a-text></a-entity>
+      <a-entity id="seg-U" position="0 -0.04 0.02" class="interactive-key seg-key" data-char="U"><a-sphere radius="0.022" color="#6366f1" data-original-color="#6366f1"></a-sphere><a-text value="U\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 90" text="value: U"></a-text></a-entity>
+
+      <a-entity id="seg-V" position="0.06 0.07 0.02" class="interactive-key seg-key" data-char="V"><a-sphere radius="0.022" color="#8b5cf6" data-original-color="#8b5cf6"></a-sphere><a-text value="V\nTip" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 90" text="value: V"></a-text></a-entity>
+      <a-entity id="seg-W" position="0.06 0.01 0.02" class="interactive-key seg-key" data-char="W"><a-sphere radius="0.022" color="#a855f7" data-original-color="#a855f7"></a-sphere><a-text value="W\nMid" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 90" text="value: W"></a-text></a-entity>
+      <a-entity id="seg-X" position="0.06 -0.05 0.02" class="interactive-key seg-key" data-char="X"><a-sphere radius="0.022" color="#ec4899" data-original-color="#ec4899"></a-sphere><a-text value="X\nBase" align="center" color="white" width="0.75" position="0 0 0.025" rotation="0 0 90" text="value: X"></a-text></a-entity>
+
+      <a-entity id="left-thumb-actuator" position="-0.2 -0.03 0.03"><a-sphere radius="0.02" color="#f43f5e" data-original-color="#f43f5e"></a-sphere><a-text value="Thumb" align="center" color="#f43f5e" width="0.7" position="0 -0.03 0" rotation="0 0 90"></a-text></a-entity>
+    </a-entity>
+
+    <!-- 5. CAMERA RIG WITH ARROW + PAGEUP/PAGEDOWN & LASER POINTER CONTROLS -->
     <a-entity id="rig" position="0 1.6 0" camera-arrow-controls>
       <a-camera id="camera" look-controls="enabled: true" wasd-controls="enabled: false">
         <a-entity id="gaze-cursor"
@@ -208,9 +198,9 @@
         </a-entity>
       </a-camera>
 
-      <!-- WebXR Hands -->
-      <a-entity id="left-hand" hand-tracking-controls="hand: left;"></a-entity>
-      <a-entity id="right-hand" hand-tracking-controls="hand: right;"></a-entity>
+      <!-- Laser Pointer Controls for VR Gamepads (Meta Quest, Daydream, etc.) -->
+      <a-entity laser-controls="hand: right" raycaster="objects: .interactive-key, a-sphere, a-box, .clickable; lineColor: #6366f1; lineOpacity: 0.8"></a-entity>
+      <a-entity laser-controls="hand: left" raycaster="objects: .interactive-key, a-sphere, a-box, .clickable; lineColor: #a855f7; lineOpacity: 0.8"></a-entity>
     </a-entity>
   </a-scene>
 
@@ -219,28 +209,18 @@
       init: function () {
         this.speed = 0.08;
         this.keysPressed = {};
-
-        window.addEventListener('keydown', (e) => {
-          this.keysPressed[e.key] = true;
-        });
-
-        window.addEventListener('keyup', (e) => {
-          this.keysPressed[e.key] = false;
-        });
+        window.addEventListener('keydown', (e) => { this.keysPressed[e.key] = true; });
+        window.addEventListener('keyup', (e) => { this.keysPressed[e.key] = false; });
       },
-
       tick: function () {
-        const el = this.el;
-        const pos = el.getAttribute('position');
-
+        const pos = this.el.getAttribute('position');
         if (this.keysPressed['ArrowUp']) pos.z -= this.speed;
         if (this.keysPressed['ArrowDown']) pos.z += this.speed;
         if (this.keysPressed['ArrowLeft']) pos.x -= this.speed;
         if (this.keysPressed['ArrowRight']) pos.x += this.speed;
         if (this.keysPressed['PageUp']) pos.y += this.speed;
         if (this.keysPressed['PageDown']) pos.y -= this.speed;
-
-        el.setAttribute('position', pos);
+        this.el.setAttribute('position', pos);
       }
     });
 
@@ -261,15 +241,21 @@
     let currentWPM = 0;
     let inactivityTimer = null;
 
-    // Screen Scroll Variables
     let scrollOffset = 0;
     const MAX_VISIBLE_LINES = 3;
 
-    const segmentKeysMap = [
+    const rightSegmentKeys = [
       { id: 'seg-A', char: 'A' }, { id: 'seg-B', char: 'B' }, { id: 'seg-C', char: 'C' },
       { id: 'seg-D', char: 'D' }, { id: 'seg-E', char: 'E' }, { id: 'seg-F', char: 'F' },
       { id: 'seg-G', char: 'G' }, { id: 'seg-H', char: 'H' }, { id: 'seg-I', char: 'I' },
       { id: 'seg-J', char: 'J' }, { id: 'seg-K', char: 'K' }, { id: 'seg-L', char: 'L' }
+    ];
+
+    const leftSegmentKeys = [
+      { id: 'seg-M', char: 'M' }, { id: 'seg-N', char: 'N' }, { id: 'seg-O', char: 'O' },
+      { id: 'seg-P', char: 'P' }, { id: 'seg-Q', char: 'Q' }, { id: 'seg-R', char: 'R' },
+      { id: 'seg-S', char: 'S' }, { id: 'seg-T', char: 'T' }, { id: 'seg-U', char: 'U' },
+      { id: 'seg-V', char: 'V' }, { id: 'seg-W', char: 'W' }, { id: 'seg-X', char: 'X' }
     ];
 
     const qwertyRows = [
@@ -317,9 +303,7 @@
       qwertyRows.forEach((row, rowIndex) => {
         const yPos = -rowIndex * 0.15;
         let rowWidth = 0;
-        row.forEach(item => {
-          rowWidth += (item.width || 0.12) + 0.02;
-        });
+        row.forEach(item => { rowWidth += (item.width || 0.12) + 0.02; });
         const startX = -rowWidth / 2 + 0.07;
 
         let currentX = startX;
@@ -388,18 +372,9 @@
 
     function updateWPM(char) {
       if (inactivityTimer) clearTimeout(inactivityTimer);
-
-      inactivityTimer = setTimeout(() => {
-        resetWPM();
-      }, 10000);
-
-      if (typingStartTime === null) {
-        typingStartTime = performance.now();
-      }
-
-      if (char === ' ') {
-        wordCount++;
-      }
+      inactivityTimer = setTimeout(() => { resetWPM(); }, 10000);
+      if (typingStartTime === null) typingStartTime = performance.now();
+      if (char === ' ') wordCount++;
 
       const elapsedMinutes = (performance.now() - typingStartTime) / 60000;
       currentWPM = elapsedMinutes > 0 ? Math.round(wordCount / elapsedMinutes) : 0;
@@ -416,7 +391,6 @@
       if (!text) return ["Output: "];
       const lines = [];
       let currentLine = "";
-
       for (let char of text) {
         if (currentLine.length >= maxCharsPerLine) {
           lines.push(currentLine);
@@ -507,7 +481,6 @@
       }
     }
 
-    // Reliable Physical Keyboard Input Handler
     window.addEventListener('keydown', (e) => {
       const key = e.key.toUpperCase();
       if (key >= 'A' && key <= 'Z' && key.length === 1) {
@@ -528,7 +501,7 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       buildQwertyKeyboard();
-      segmentKeysMap.forEach(key => {
+      [...rightSegmentKeys, ...leftSegmentKeys].forEach(key => {
         const segEl = document.getElementById(key.id);
         if (segEl) {
           segEl.addEventListener('click', (e) => {

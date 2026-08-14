@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cardboard V2 - Wireframe Alphabet Finger Segment Keyboard</title>
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <!-- MediaPipe Hands & Utilities -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <!-- External Configuration File -->
+  <script src="./js/config.js"></script>
+  <style>
+    body {
+      margin: 0;
+      background: #090d16;
+      color: #f8fafc;
+      font-family: system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+    }
+    #ui-bar {
+      position: fixed;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      background: rgba(15, 23, 42, 0.9);
+      padding: 10px 18px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+      backdrop-filter: blur(8px);
+    }
+    button {
+      background: #0284c7;
+      color: white;
+      border: none;
+      padding: 7px 13px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    button:hover { background: #0369a1; }
+    #typed-display {
+      position: fixed;
+      bottom: 15px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      background: rgba(15, 23, 42, 0.92);
+      padding: 8px 20px;
+      border-radius: 10px;
+      border: 1px solid #38bdf8;
+      font-size: 0.95rem;
+      letter-spacing: 0.5px;
+      min-width: 360px;
+      text-align: center;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 15px rgba(56, 189, 248, 0.25);
+    }
+    #container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+    }
+    video, canvas, a-scene {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    #webcam, #output_canvas {
+      object-fit: cover;
+      transform: scaleX(-1);
+    }
+    a-scene {
+      z-index: 10;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="ui-bar">
+    <button onclick="window.toggleCamera()">Toggle Camera (Rear/Front)</button>
+    <button onclick="window.location.href='mediapipe-test.html'">Test MediaPipe</button>
+    <button onclick="window.clearText()">Clear</button>
+    <button onclick="window.location.href='index.html'">Menu</button>
+    <span id="status" style="color: #38bdf8; font-size: 0.85rem;">Initializing MediaPipe Hands V2...</span>
+  </div>
+
+  <div id="typed-display">
+    <span style="color: #10b981; font-weight: bold;">WPM: <span id="wpm-val">0</span></span> | Output: <span id="text-output" style="color: #38bdf8; font-weight: bold;"></span>
+  </div>
+
+  <div id="container">
+    <video id="webcam" autoplay playsinline muted></video>
+    <canvas id="output_canvas"></canvas>
+
+    <!-- A-Frame 3D Layer Overlaid Directly on Top of Canvas & Video -->
+    <a-scene background="transparent: true" renderer="alpha: true" keyboard-shortcuts="enterVR: false">
+      <a-assets>
+        <mixin id="seg-btn" geometry="primitive: sphere; radius: 0.025" material="shader: flat; color: #38bdf8; opacity: 0.9"></mixin>
+      </a-assets>
+
+      <a-entity cursor="rayOrigin: mouse" raycaster="objects: .interactive-key, a-sphere, a-box, .clickable"></a-entity>
+      <a-entity light="type: ambient; color: #ffffff; intensity: 0.9"></a-entity>
+
+      <!-- Floating Output Display Screen (Positioned at eye-level Y=2.1, Z=-1.6) -->
+      <a-entity id="floating-screen" position="0 2.1 -1.6">
+        <a-plane width="1.8" height="0.48" color="#0f172a" opacity="0.88" material="shader: flat" position="0 0 -0.05"></a-plane>
+        <a-box width="1.82" height="0.5" depth="0.01" color="#38bdf8" opacity="0.3" position="0 0 -0.06"></a-box>
+        <a-text id="vr-text-output" value="Output: " align="left" color="#38bdf8" width="2.4" position="-0.78 0.1 0.02" font="dejavu"></a-text>
+      </a-entity>
+
+      <!-- 3D Segment Buttons for Right Hand (A-L) and Left Hand (M-X) -->
+      <a-entity id="wireframe-buttons-container"></a-entity>
+
+      <!-- Camera Rig with 3s Gaze Reticle -->
+      <a-entity id="rig" position="0 0 0">
+        <a-camera id="camera" look-controls="enabled: true" wasd-controls="enabled: false">
+          <a-entity id="gaze-cursor"
+                    position="0 0 -1"
+                    geometry="primitive: ring; radiusInner: 0.008; radiusOuter: 0.015"
+                    material="color: #38bdf8; shader: flat"
+                    cursor="maxDistance: 30; fuse: true; fuseTimeout: 3000"
+                    raycaster="objects: .interactive-key, a-sphere, a-box, .clickable"
+                    animation__click="property: scale; from: 0.2 0.2 0.2; to: 1 1 1; startEvents: click; dur: 150; easing: easeInQuad"
+                    animation__fusing="property: scale; from: 1 1 1; to: 0.15 0.15 0.15; startEvents: fusing; dur: 3000; easing: easeInQuad">
+          </a-entity>
+        </a-camera>
+      </a-entity>
+    </a-scene>
+  </div>
+
+  <script>
+    let cameraUtil = null;
+    let hands = null;
+    let useRearCamera = false;
+    let typedText = '';
+    let audioCtx = null;
+    let lastTouchTime = {};
+
+    let typingStartTime = null;
+    let wordCount = 0;
+    let currentWPM = 0;
+    let inactivityTimer = null;
+
+    const videoElement = document.getElementById('webcam');
+    const canvasElement = document.getElementById('output_canvas');
+    const canvasCtx = canvasElement.getContext('2d');
+
+    // Right Hand Segments (A-L) and Left Hand Segments (M-X)
+    const rightSegments = [
+      { id: 'seg-A', char: 'A', landmark: 8, label: 'A (Index Tip)', color: '#ef4444' },
+      { id: 'seg-B', char: 'B', landmark: 7, label: 'B (Index Mid)', color: '#f97316' },
+      { id: 'seg-C', char: 'C', landmark: 6, label: 'C (Index Base)', color: '#facc15' },
+      { id: 'seg-D', char: 'D', landmark: 12, label: 'D (Mid Tip)', color: '#22c55e' },
+      { id: 'seg-E', char: 'E', landmark: 11, label: 'E (Mid Mid)', color: '#10b981' },
+      { id: 'seg-F', char: 'F', landmark: 10, label: 'F (Mid Base)', color: '#14b8a6' },
+      { id: 'seg-G', char: 'G', landmark: 16, label: 'G (Ring Tip)', color: '#06b6d4' },
+      { id: 'seg-H', char: 'H', landmark: 15, label: 'H (Ring Mid)', color: '#3b82f6' },
+      { id: 'seg-I', char: 'I', landmark: 14, label: 'I (Ring Base)', color: '#6366f1' },
+      { id: 'seg-J', char: 'J', landmark: 20, label: 'J (Little Tip)', color: '#8b5cf6' },
+      { id: 'seg-K', char: 'K', landmark: 19, label: 'K (Little Mid)', color: '#a855f7' },
+      { id: 'seg-L', char: 'L', landmark: 18, label: 'L (Little Base)', color: '#ec4899' }
+    ];
+
+    const leftSegments = [
+      { id: 'seg-M', char: 'M', landmark: 8, label: 'M (Index Tip)', color: '#ef4444' },
+      { id: 'seg-N', char: 'N', landmark: 7, label: 'N (Index Mid)', color: '#f97316' },
+      { id: 'seg-O', char: 'O', landmark: 6, label: 'O (Index Base)', color: '#facc15' },
+      { id: 'seg-P', char: 'P', landmark: 12, label: 'P (Mid Tip)', color: '#22c55e' },
+      { id: 'seg-Q', char: 'Q', landmark: 11, label: 'Q (Mid Mid)', color: '#10b981' },
+      { id: 'seg-R', char: 'R', landmark: 10, label: 'R (Mid Base)', color: '#14b8a6' },
+      { id: 'seg-S', char: 'S', landmark: 16, label: 'S (Ring Tip)', color: '#06b6d4' },
+      { id: 'seg-T', char: 'T', landmark: 15, label: 'T (Ring Mid)', color: '#3b82f6' },
+      { id: 'seg-U', char: 'U', landmark: 14, label: 'U (Ring Base)', color: '#6366f1' },
+      { id: 'seg-V', char: 'V', landmark: 20, label: 'V (Little Tip)', color: '#8b5cf6' },
+      { id: 'seg-W', char: 'W', landmark: 19, label: 'W (Little Mid)', color: '#a855f7' },
+      { id: 'seg-X', char: 'X', landmark: 18, label: 'X (Little Base)', color: '#ec4899' }
+    ];
+
+    function updateCanvasSize() {
+      canvasElement.width = window.innerWidth;
+      canvasElement.height = window.innerHeight;
+    }
+    window.addEventListener('resize', updateCanvasSize);
+    updateCanvasSize();
+
+    function playBeepSound() {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.12);
+      } catch (e) { console.warn(e); }
+    }
+
+    function updateWPM(char) {
+      if (inactivityTimer) clearTimeout(inactivityTimer);
+      inactivityTimer = setTimeout(() => { resetWPM(); }, 10000);
+      if (typingStartTime === null) typingStartTime = performance.now();
+      if (char === ' ') wordCount++;
+
+      const elapsedMinutes = (performance.now() - typingStartTime) / 60000;
+      currentWPM = elapsedMinutes > 0 ? Math.round(wordCount / elapsedMinutes) : 0;
+    }
+
+    function resetWPM() {
+      typingStartTime = null;
+      wordCount = 0;
+      currentWPM = 0;
+      updateDisplay();
+    }
+
+    function typeChar(char) {
+      typedText += char;
+      updateWPM(char);
+      updateDisplay();
+      playBeepSound();
+    }
+
+    window.clearText = function() {
+      typedText = '';
+      resetWPM();
+      updateDisplay();
+    };
+
+    function updateDisplay() {
+      document.getElementById('text-output').innerText = typedText;
+      document.getElementById('wpm-val').innerText = currentWPM;
+
+      const vrText = document.getElementById('vr-text-output');
+      if (vrText) vrText.setAttribute('value', 'Output: ' + typedText);
+    }
+
+    async function initApp() {
+      try {
+        hands = new Hands({
+          locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+
+        hands.setOptions({
+          maxNumHands: 2,
+          modelComplexity: 1,
+          minDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5
+        });
+
+        hands.onResults(onResults);
+        startCamera();
+        document.getElementById('status').innerText = "Cardboard V2 Ready! Show Both Hands.";
+      } catch (err) {
+        document.getElementById('status').innerText = "Init Error: " + err.message;
+      }
+    }
+
+    function startCamera() {
+      if (cameraUtil) {
+        try { cameraUtil.stop(); } catch(e){}
+      }
+
+      cameraUtil = new Camera(videoElement, {
+        onFrame: async () => {
+          if (hands) {
+            await hands.send({ image: videoElement });
+          }
+        },
+        width: 1280,
+        height: 720,
+        facingMode: useRearCamera ? "environment" : "user"
+      });
+
+      cameraUtil.start().catch(err => console.warn(err));
+    }
+
+    window.toggleCamera = function() {
+      useRearCamera = !useRearCamera;
+      startCamera();
+    };
+
+    function onResults(results) {
+      canvasCtx.save();
+      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+      const now = performance.now();
+
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        for (let i = 0; i < results.multiHandLandmarks.length; i++) {
+          const landmarks = results.multiHandLandmarks[i];
+          let label = "Right";
+          if (results.multiHandedness && results.multiHandedness[i]) {
+            label = results.multiHandedness[i].label;
+          }
+
+          // 1. Draw 2D Wireframe Skeleton Lines on Canvas
+          if (window.drawConnectors && window.HAND_CONNECTIONS) {
+            drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
+              color: label === 'Right' ? '#00FFFF' : '#A855F7',
+              lineWidth: 4
+            });
+            drawLandmarks(canvasCtx, landmarks, {
+              color: '#FF0000',
+              lineWidth: 2,
+              radius: 4
+            });
+          }
+
+          const activeSegments = label === 'Right' ? rightSegments : leftSegments;
+          const thumbTip = landmarks[4];
+
+          // 2. Draw Alphabet Buttons directly on top of the Wireframe Joints on Canvas
+          activeSegments.forEach(seg => {
+            const pt = landmarks[seg.landmark];
+            if (pt) {
+              const x = pt.x * canvasElement.width;
+              const y = pt.y * canvasElement.height;
+
+              // Draw Glowing Button Circle over Wireframe Joint
+              canvasCtx.beginPath();
+              canvasCtx.arc(x, y, 16, 0, 2 * Math.PI);
+              canvasCtx.fillStyle = seg.color;
+              canvasCtx.fill();
+              canvasCtx.lineWidth = 2;
+              canvasCtx.strokeStyle = "#ffffff";
+              canvasCtx.stroke();
+
+              // Draw Alphabet Letter Label inside Button Circle
+              canvasCtx.fillStyle = "#ffffff";
+              canvasCtx.font = "bold 14px sans-serif";
+              canvasCtx.textAlign = "center";
+              canvasCtx.textBaseline = "middle";
+              canvasCtx.fillText(seg.char, x, y);
+
+              // Check Thumb Proximity Touch Trigger
+              const dist = Math.sqrt(
+                Math.pow(thumbTip.x - pt.x, 2) +
+                Math.pow(thumbTip.y - pt.y, 2) +
+                Math.pow(thumbTip.z - pt.z, 2)
+              );
+
+              if (dist < 0.045) { // 4.5 cm threshold
+                if (!lastTouchTime[seg.char] || (now - lastTouchTime[seg.char] > 600)) {
+                  lastTouchTime[seg.char] = now;
+                  typeChar(seg.char);
+                }
+              }
+            }
+          });
+
+          // Draw Thumb Actuator Badge over Thumb Tip (Landmark 4)
+          const tx = thumbTip.x * canvasElement.width;
+          const ty = thumbTip.y * canvasElement.height;
+          canvasCtx.beginPath();
+          canvasCtx.arc(tx, ty, 14, 0, 2 * Math.PI);
+          canvasCtx.fillStyle = "#f43f5e";
+          canvasCtx.fill();
+          canvasCtx.fillStyle = "#ffffff";
+          canvasCtx.font = "bold 11px sans-serif";
+          canvasCtx.fillText("Thumb", tx, ty);
+        }
+      }
+      canvasCtx.restore();
+    }
+
+    // Physical Keyboard Fallback
+    window.addEventListener('keydown', (e) => {
+      const key = e.key.toUpperCase();
+      if (key >= 'A' && key <= 'Z' && key.length === 1) {
+        typeChar(key);
+      } else if (e.key === ' ') {
+        e.preventDefault();
+        typeChar(' ');
+      } else if (e.key === 'Backspace') {
+        e.preventDefault();
+        if (typedText.length > 0) {
+          typedText = typedText.slice(0, -1);
+          updateDisplay();
+          playBeepSound();
+        }
+      }
+    });
+
+    window.addEventListener('DOMContentLoaded', initApp);
+  </script>
+</body>
+</html>

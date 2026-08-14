@@ -135,15 +135,15 @@
     <!-- Camera Rig with Gaze 3s & WebXR Controllers -->
     <a-entity id="rig" position="0 1.6 0">
       <a-camera id="camera" look-controls="enabled: true">
-        <a-cursor id="gaze-cursor"
-                  fuse="true"
-                  fuse-timeout="3000"
-                  raycaster="objects: .interactive-key"
-                  position="0 0 -1"
-                  geometry="primitive: ring; radiusInner: 0.008; radiusOuter: 0.014"
-                  material="color: #818cf8; shader: flat">
-          <a-animation begin="fusing" easing="ease-in" attribute="scale" dur="3000" fill="backwards" from="1 1 1" to="0.15 0.15 0.15"></a-animation>
-        </a-cursor>
+        <!-- 3-Second Gaze Fuse Reticle Ring (A-Frame 1.x working animation components) -->
+        <a-entity position="0 0 -1"
+                  geometry="primitive: ring; radiusInner: 0.008; radiusOuter: 0.015"
+                  material="color: #818cf8; shader: flat"
+                  cursor="maxDistance: 30; fuse: true; fuseTimeout: 3000"
+                  raycaster="objects: .interactive-key, .clickable"
+                  animation__click="property: scale; from: 0.2 0.2 0.2; to: 1 1 1; startEvents: click; dur: 150; easing: easeInQuad"
+                  animation__fusing="property: scale; from: 1 1 1; to: 0.15 0.15 0.15; startEvents: fusing; dur: 3000; easing: easeInQuad">
+        </a-entity>
       </a-camera>
 
       <!-- WebXR Hands -->
